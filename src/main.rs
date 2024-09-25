@@ -1,63 +1,17 @@
 #![feature(box_patterns)]
 
-use std::{collections::HashSet, convert::identity, hash::Hash, mem::take, path::Iter};
+mod segment;
+mod visitor;
 
-use proc_macro2::TokenStream;
+use std::mem::take;
+
 use quote::{quote, ToTokens};
+use segment::RawSegment;
 use syn::{
-    parse_quote, parse_str, punctuated::Punctuated, token::Brace, visit::{self, Visit}, Block, Expr, ExprAwait, ExprClosure, ExprPath, ExprTuple, Ident, Local, LocalInit, Pat, PatIdent, PatPath, Path, Stmt
+    parse_str,
+    Block, Expr, Local, LocalInit, Stmt,
 };
-
-#[derive(Clone)]
-enum RawSegment {
-    Await(Vec<Stmt>),
-    End(Vec<Stmt>),
-}
-
-
-impl RawSegment {
-    fn into_block(self) -> Block {
-        Block {
-            brace_token: Default::default(),
-            stmts: match self {
-                Self::Await(v) => v,
-                Self::End(v) => v,
-            }
-        }
-    }
-
-    fn into_segment(self, inputs: Vec<Ident>, outputs: Vec<Ident>) -> Segment {
-        match self {
-            Self::Await(v) => Segment::Await(inputs, v, outputs),
-            Self::End(v) => Segment::End(inputs, v),
-        }
-    }
-}
-
-enum Segment {
-    Await(Vec<Ident>, Vec<Stmt>, Vec<Ident>),
-    End(Vec<Ident>, Vec<Stmt>),
-}
-
-impl ToTokens for Segment {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.extend(match self {
-            Self::Await(inputs, statements, outputs) => quote! {
-                poll_future(
-                    async |#(#inputs),*| {
-                        #(#statements)*
-                        (#(#outputs),*)
-                    }
-                ); // ; should be ->
-            },
-            Self::End(inputs, statements) => quote! {
-                map(|#(#inputs),*| {
-                    #(#statements)*
-                });
-            },
-        });
-    }
-}
+use visitor::LocalVisitor;
 
 // match `let _ = expr.await;`
 fn is_await(stmt: &Stmt) -> bool {
@@ -73,76 +27,6 @@ fn is_await(stmt: &Stmt) -> bool {
         })
     )
 }
-
-// fn register_statement_locals(mut locals: HashSet<Ident>, stmt: &Stmt) -> HashSet<Ident> {
-//     // the local defined this statement
-//     if let Some(defined_local) = get_defined_local(stmt) {
-//         locals.remove(&defined_local); // TODO: could be many!! need to visit
-//     }
-//     // the locals needed by this statement
-//     let needed_locals = get_needed_locals(stmt);
-//     locals.extend(needed_locals);
-
-//     locals
-// }
-
-fn get_defined_local(stmt: &Stmt) -> Option<Ident> {
-    match stmt {
-        Stmt::Local(Local {
-            pat: Pat::Ident(PatIdent { ident, .. }),
-            ..
-        }) => Some(ident.clone()),
-        _ => None,
-    }
-}
-
-struct LocalVisitor {
-    idents: HashSet<Ident>,
-}
-
-impl LocalVisitor {
-    fn visit_raw_segment(idents: Vec<Ident>, raw_segment: RawSegment) -> Vec<Ident> {
-        let mut visitor = LocalVisitor {
-            idents: idents.into_iter().collect()
-        };
-        visitor.visit_block(&raw_segment.into_block());
-        visitor.idents.into_iter().collect()
-    }
-}
-
-impl<'ast> Visit<'ast> for LocalVisitor {
-    // visit statements in reverse
-    fn visit_block(&mut self, block: &'ast syn::Block) {
-        for stmt in block.stmts.iter().rev() {
-            self.visit_stmt(stmt);
-        }
-    }
-
-    // Add visited locals
-    fn visit_expr_path(&mut self, exprpath: &'ast syn::ExprPath) {
-        if let Some(ident) = exprpath.path.get_ident() {
-            self.idents.insert(ident.clone());
-        }
-
-        // visit nested?
-        visit::visit_expr_path(self, exprpath);
-    }
-
-    fn visit_local(&mut self, local: &'ast syn::Local) {
-        if let Pat::Ident(PatIdent { ident, ..}) = &local.pat {
-            self.idents.remove(ident);
-        }
-        
-        // visit nested?
-        visit::visit_local(self, local);
-    }
-}
-
-// fn get_needed_locals(stmt: &Stmt) -> HashSet<Ident> {
-//     let mut visitor = LocalVisitor::new();
-//     visitor.visit_stmt(stmt);
-//     visitor.idents
-// }
 
 fn main() {
     let block: Block = parse_str(
