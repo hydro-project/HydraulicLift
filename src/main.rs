@@ -29,6 +29,9 @@ fn is_await(stmt: &Stmt) -> bool {
 }
 
 fn main() {
+    //TODO (maybe): make future directly
+
+
     let block: Block = parse_str(
         "
 {
