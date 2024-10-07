@@ -108,8 +108,8 @@ fn main() {
     println!("{}", program_tokens);
 
     //problems:
-    // names
-    // lifetimes
+    // names - fixed?
+    // lifetimes - IGNORE
     //   what if i take let b = &a and only reference b in future sections?
-    // control flow
+    // control flow - in progress
 }
