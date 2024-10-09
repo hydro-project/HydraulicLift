@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use syn::{visit::{self, Visit}, Ident, Pat, PatIdent};
 
-use crate::segment::RawSegment;
+use crate::oldsegment::RawSegment;
 
 pub struct LocalVisitor {
     idents: HashSet<Ident>,
