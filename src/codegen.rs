@@ -1,22 +1,21 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{token, Token};
+use quote::{quote, ToTokens};
 
-use crate::rast::*;
+use crate::{asta::*, debugutil::DebugStr};
 
-// TODO: this should be run on the i/o annotated version of the tree, not the H versions
+// TODO: this should be run on the H versions, not the R versions
 
-impl ToTokens for RExpr {
+impl ToTokens for AExpr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            RExpr::If(s)    => s.to_tokens(tokens),
-            RExpr::Block(s) => s.to_tokens(tokens),
-            RExpr::Raw(s)   => s.to_tokens(tokens),
+            AExpr::If(s)            => s.to_tokens(tokens),
+            AExpr::Block(s)         => s.to_tokens(tokens),
+            AExpr::Raw(DebugStr(s)) => s.to_tokens(tokens),
         }
     }
 }
 
-impl ToTokens for RExprIf {
+impl ToTokens for AExprIf {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self { condition, then_block, else_block } = self;
         tokens.extend(quote! {
@@ -28,7 +27,7 @@ impl ToTokens for RExprIf {
     }
 }
 
-impl ToTokens for RExprBlock {
+impl ToTokens for AExprBlock {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self { statements } = self;
         tokens.extend(quote! {
@@ -39,27 +38,27 @@ impl ToTokens for RExprBlock {
     }
 }
 
-impl ToTokens for RStmt {
+impl ToTokens for AStmt {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            RStmt::LetAwait(s)  => s.to_tokens(tokens),
-            RStmt::Return(s)    => s.to_tokens(tokens),
-            RStmt::Expr(s)      => s.to_tokens(tokens),
-            RStmt::Raw(s)       => s.to_tokens(tokens),
+            AStmt::LetAwait(s)      => s.to_tokens(tokens),
+            AStmt::Return(s)        => s.to_tokens(tokens),
+            AStmt::Expr(s)          => s.to_tokens(tokens),
+            AStmt::Raw(DebugStr(s)) => s.to_tokens(tokens),
         }
     }
 }
 
-impl ToTokens for RStmtLetAwait {
+impl ToTokens for AStmtLetAwait {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Self { definition, future } = self;
+        let Self { definition: DebugStr(definition), future } = self;
         tokens.extend(quote! {
             let #definition = #future.await;
         });
     }
 }
 
-impl ToTokens for RReturn {
+impl ToTokens for AReturn {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Self { value } = self;
         let value_toks = match value {

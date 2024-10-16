@@ -3,52 +3,50 @@ use std::fmt::Debug;
 use quote::ToTokens;
 use syn::{Expr, Pat, Stmt};
 
-/// R AST - Extended syn AST which directly represents the Rust code.
-/// New AST constructs are relevant for H AST translation.
-/// TODO: lift all H AST relevant objects to the top level. All syn encapsulated objects should be raw rust
+/// AST B - AST A which includes 
 
-pub enum RExpr {
-    If(RExprIf),
-    Block(RExprBlock),
+pub enum BExpr {
+    If(BExprIf),
+    Block(BExprBlock),
     Raw(Expr), //TODO: expand
 }
 
 #[derive(Debug)]
-pub struct RExprIf {
-    pub condition: Box<RExpr>,
-    pub then_block: RExprBlock,
-    pub else_block: Option<Box<RExpr>>
+pub struct BExprIf {
+    pub condition: Box<BExpr>,
+    pub then_block: BExprBlock,
+    pub else_block: Option<Box<BExpr>>
 }
 
 /// sequence of statements which evaluates to a value
 #[derive(Debug)]
-pub struct RExprBlock {
-    pub statements: Vec<RStmt>,
+pub struct BExprBlock {
+    pub statements: Vec<BStmt>,
 }
 
-pub enum RStmt {
-    LetAwait(RStmtLetAwait),
-    Return(RReturn),
-    Expr(RExpr),
+pub enum BStmt {
+    LetAwait(BStmtLetAwait),
+    Return(BReturn),
+    Expr(BExpr),
     Raw(Stmt), // TODO: expand
 }
 
 /// currently only matching let y = x.await
-pub struct RStmtLetAwait {
+pub struct BStmtLetAwait {
     pub definition: Pat,    // y
-    pub future: Box<RExpr>, // x
+    pub future: Box<BExpr>, // x
 }
-
+// derive debug expression
 #[derive(Debug)]
-pub struct RReturn {
-    pub value: Option<RExpr>
+pub struct BReturn {
+    pub value: Option<BExpr>
 }
 
 fn toks_to_debug(x: impl ToTokens) -> String {
     format!("{}", x.to_token_stream())
 }
 
-impl Debug for RExpr {
+impl Debug for BExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::If(arg0)      => f.debug_tuple("If")      .field(arg0).finish(),
@@ -58,7 +56,7 @@ impl Debug for RExpr {
     }
 }
 
-impl Debug for RStmt {
+impl Debug for BStmt {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::LetAwait(arg0)    => f.debug_tuple("LetAwait").field(arg0).finish(),
@@ -69,7 +67,7 @@ impl Debug for RStmt {
     }
 }
 
-impl Debug for RStmtLetAwait {
+impl Debug for BStmtLetAwait {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RStmtLetAwait").field("definition", &toks_to_debug(&self.definition)).field("future", &self.future).finish()
     }

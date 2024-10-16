@@ -1,11 +1,14 @@
 #![feature(box_patterns)]
 
-use rast::RExpr;
+use asta::AExpr;
 use quote::quote;
 use syn::{parse_quote, Expr};
-mod rast;
+mod asta;
 mod parser;
 mod codegen;
+mod hast;
+mod astb;
+mod debugutil;
 
 //steps:
 // 1) Encapsulate special-cased rust logic, pulling all dataflow-relevant operations above the barrier
@@ -36,7 +39,7 @@ pub fn main() {
         }
     };
 
-    let hex: RExpr = input.into();
+    let hex: AExpr = input.into();
     let hex_debug = format!("{:?}", hex);
 
     println!("fn raw() {{{}}}", hex_debug);
@@ -46,6 +49,7 @@ pub fn main() {
             #hex
         }
     };
+    // USE HYDROFLOW+ rust IR (look at IR file)
 
     println!("{}", toks);
 

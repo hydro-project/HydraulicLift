@@ -1,18 +1,18 @@
-use syn::{Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Stmt};
+use syn::{Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Pat, PatIdent, Stmt};
 
-use crate::rast::*;
+use crate::asta::*;
 
-impl From<Expr> for RExpr {
+impl From<Expr> for AExpr {
     fn from(value: Expr) -> Self {
         match value {
             Expr::Block(s) => Self::Block(s.into()),
             Expr::If(s) => Self::If(s.into()),
-            _ => Self::Raw(value),
+            s => Self::Raw(s.into()),
         }
     }
 }
 
-impl From<ExprIf> for RExprIf {
+impl From<ExprIf> for AExprIf {
     fn from(expr_if: ExprIf) -> Self {
         let ExprIf {
             box cond,
@@ -28,13 +28,13 @@ impl From<ExprIf> for RExprIf {
     }
 }
 
-impl From<ExprBlock> for RExprBlock {
+impl From<ExprBlock> for AExprBlock {
     fn from(expr_block: ExprBlock) -> Self {
         expr_block.block.into()
     }
 }
 
-impl From<Block> for RExprBlock {
+impl From<Block> for AExprBlock {
     fn from(block: Block) -> Self {
         Self {
             statements: block.stmts.into_iter().map(From::from).collect(), // could group_by to merge raw stmts
@@ -42,26 +42,26 @@ impl From<Block> for RExprBlock {
     }
 }
 
-impl From<Stmt> for RStmt {
+impl From<Stmt> for AStmt {
     fn from(stmt: Stmt) -> Self {
         match stmt {
             Stmt::Local(Local {
-                pat: definition,
+                pat: Pat::Ident(PatIdent {ident, ..}),
                 init:
                     Some(LocalInit {
                         expr: box Expr::Await(ExprAwait { base: box base, .. }),
                         ..
                     }),
                 ..
-            }) => Self::LetAwait(RStmtLetAwait {
-                definition,
+            }) => Self::LetAwait(AStmtLetAwait {
+                definition: ident.into(),
                 future: Box::new(base.into()),
             }),
-            Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RReturn {
+            Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(AReturn {
                 value: expr.map(|box value| value.into()),
             }),
             Stmt::Expr(expr, _) => Self::Expr(expr.into()),
-            _ => Self::Raw(stmt),
+            _ => Self::Raw(stmt.into()),
         }
     }
 }
