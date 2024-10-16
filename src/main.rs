@@ -6,7 +6,7 @@ mod r_ast;
 mod parser;
 mod code_gen;
 mod hast;
-mod debug_util;
+mod utils;
 mod scope_analysis;
 mod io;
 

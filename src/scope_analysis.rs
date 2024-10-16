@@ -50,6 +50,8 @@ impl From<RStmt<()>> for Tagged<RStmt<IO>> {
 
 impl From<RStmtLetAwait<()>> for Tagged<RStmtLetAwait<IO>> {
     fn from(RStmtLetAwait { definition, box future }: RStmtLetAwait<()>) -> Self {
+        /// PROBLEM: WE WANT TO REMOVE DEFINITION FROM THE NEEDED INPUTS OF OTHER STATEMENTS!!!
+        /// THIS ABSTRACTION IS WRONG
         let (tagged_future, inputs) = future.into();
         let tagged_stmt = RStmtLetAwait {
             definition,
