@@ -1,14 +1,14 @@
 #![feature(box_patterns)]
 
-use asta::AExpr;
-use quote::quote;
+use r_ast::RExpr;
 use syn::{parse_quote, Expr};
-mod asta;
+mod r_ast;
 mod parser;
-mod codegen;
+mod code_gen;
 mod hast;
-mod astb;
-mod debugutil;
+mod debug_util;
+mod scope_analysis;
+mod io;
 
 //steps:
 // 1) Encapsulate special-cased rust logic, pulling all dataflow-relevant operations above the barrier
@@ -39,19 +39,11 @@ pub fn main() {
         }
     };
 
-    let hex: AExpr = input.into();
+    let hex: RExpr<()> = input.into();
     let hex_debug = format!("{:?}", hex);
 
     println!("fn raw() {{{}}}", hex_debug);
 
-    let toks = quote! {
-        fn main() {
-            #hex
-        }
-    };
-    // USE HYDROFLOW+ rust IR (look at IR file)
-
-    println!("{}", toks);
 
     // println!("fn main() {{");
     // println!("{:?}", input);
