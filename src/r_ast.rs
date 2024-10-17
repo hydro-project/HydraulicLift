@@ -18,9 +18,9 @@ pub enum RExpr<M> {
 
 #[derive(Debug)]
 pub struct RExprIf<M> {
-    pub condition: Box<Tagged<RExpr<M>, M>>,
-    pub then_block: Tagged<RExprBlock<M>, M>,
-    pub else_block: Option<Box<Tagged<RExpr<M>, M>>>
+    pub condition: Box<RExpr<M>>,
+    pub then_block: RExprBlock<M>,
+    pub else_block: Option<Box<RExpr<M>>>
 }
 
 /// sequence of statements which evaluates to a value
@@ -41,18 +41,18 @@ pub enum RStmt<M> {
 /// currently only matching let y = x.await
 pub struct RStmtLetAwait<M> {
     pub definition: Ident, // y
-    pub future: Box<Tagged<RExpr<M>, M>>, // x
+    pub future: Box<RExpr<M>>, // x
 }
 
 // derive debug expression
 #[derive(Debug)]
 pub struct RReturn<M> {
-    pub value: Option<Tagged<RExpr<M>, M>>
+    pub value: Option<RExpr<M>>
 }
 
 
-/// Block = (Stmt, Option<Scoped<Block>>)
-/// RBlock = (RStmt, Option<RExpr>)
-/// Everything with a scope is Scoped
-/// If = (Cond, Scoped<Block>, Option<Expr>)
-/// Expr = ... | Scoped<Block>
+// Block = (Stmt, Option<Scoped<Block>>)
+// RBlock = (RStmt, Option<RExpr>)
+// Everything with a scope is Scoped
+// If = (Cond, Scoped<Block>, Option<Expr>)
+// Expr = ... | Scoped<Block>
