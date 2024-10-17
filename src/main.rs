@@ -39,7 +39,7 @@ pub fn main() {
         }
     };
 
-    let hex: RExpr<()> = input.into();
+    let hex: RExpr = input.into();
     let hex_debug = format!("{:?}", hex);
 
     println!("fn raw() {{{}}}", hex_debug);

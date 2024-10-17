@@ -10,44 +10,44 @@ use crate::utils::{DebugStr, Tagged};
 /// TODO: lift all HF+ AST relevant objects to the top level. All syn encapsulated objects should be raw rust
 
 #[derive(Debug)]
-pub enum RExpr<M> {
-    If(RExprIf<M>),
-    Block(RExprBlock<M>),
+pub enum RExpr {
+    If(RExprIf),
+    Block(RExprBlock),
     Raw(DebugStr<Expr>), //TODO: expand
 }
 
 #[derive(Debug)]
-pub struct RExprIf<M> {
-    pub condition: Box<RExpr<M>>,
-    pub then_block: RExprBlock<M>,
-    pub else_block: Option<Box<RExpr<M>>>
+pub struct RExprIf {
+    pub condition: Box<RExpr>,
+    pub then_block: RExprBlock,
+    pub else_block: Option<Box<RExpr>>
 }
 
 /// sequence of statements which evaluates to a value
 #[derive(Debug)]
-pub struct RExprBlock<M> {
-    pub statements: Vec<Tagged<RStmt<M>, M>>,
+pub struct RExprBlock {
+    pub statements: Vec<RStmt>,
 }
 
 #[derive(Debug)]
-pub enum RStmt<M> {
-    LetAwait(RStmtLetAwait<M>),
-    Return(RReturn<M>),
-    Expr(RExpr<M>),
+pub enum RStmt {
+    LetAwait(RStmtLetAwait),
+    Return(RReturn),
+    Expr(RExpr),
     Raw(DebugStr<Stmt>), // TODO: expand
 }
 
 #[derive(Debug)]
 /// currently only matching let y = x.await
-pub struct RStmtLetAwait<M> {
+pub struct RStmtLetAwait {
     pub definition: Ident, // y
-    pub future: Box<RExpr<M>>, // x
+    pub future: Box<RExpr>, // x
 }
 
 // derive debug expression
 #[derive(Debug)]
-pub struct RReturn<M> {
-    pub value: Option<RExpr<M>>
+pub struct RReturn {
+    pub value: Option<RExpr>
 }
 
 
