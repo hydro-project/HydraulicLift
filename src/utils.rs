@@ -11,6 +11,7 @@ pub struct Tagged<T, M>(pub T, pub M);
 
 
 /// Wraps a type, replaces the debug view with a string view
+#[derive(Clone)]
 pub struct DebugStr<T>(pub T);
 
 impl<T: ToTokens> Debug for DebugStr<T> {

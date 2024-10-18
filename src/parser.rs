@@ -1,4 +1,6 @@
-use syn::{Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Pat, PatIdent, Stmt};
+use std::ops::Deref;
+
+use syn::{parse, parse_quote, Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Pat, PatIdent, PatLit, Stmt};
 
 use crate::r_ast::*;
 
@@ -33,9 +35,44 @@ impl From<ExprBlock> for RExprBlock {
 
 impl From<Block> for RExprBlock {
     fn from(block: Block) -> Self {
+        let mut stmts = block.stmts;
+
+        // Popped last statement if it is an expression, otherwise just ()
+        let mut return_expr: RExpr = match stmts.pop() {
+            Some(Stmt::Expr(expr, None)) => expr.into(),
+            Some(stmt) => {
+                stmts.push(stmt);
+                syn_unit().into()
+            },
+            None => syn_unit().into()
+        };
+
+        for stmt in stmts.into_iter().rev() {
+            return_expr = RExpr::Block(Self {
+                stmt: stmt.into(),
+                return_expr: Box::new(return_expr)
+            })
+        } 
+
+        // add unit stmt before to make expr block
         Self {
-            statements: block.stmts.into_iter().map(From::from).collect(), // could group_by to merge raw stmts
+            stmt: RStmt::Expr(Box::new(syn_unit().into())),
+            return_expr: Box::new(return_expr)
         }
+
+
+
+        // []
+        // Block { (), special () }
+
+        // [E]
+        // Block { (), special E }
+        
+        // [a]
+        // Block { a, special () }
+
+        // [a, b, E]
+        // Block { a, Block {b, special E}}
     }
 }
 
@@ -51,14 +88,20 @@ impl From<Stmt> for RStmt {
                     }),
                 ..
             }) => Self::LetAwait(RStmtLetAwait {
-                definition: ident.into(),
+                definition: ident,
                 future: Box::new(base.into()),
             }),
             Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RReturn {
-                value: expr.map(|box value| value.into()),
+                value: Box::new(expr.map(|box e| e).unwrap_or(syn_unit()).into()),
             }),
-            Stmt::Expr(expr, _) => Self::Expr(expr.into()),
+            Stmt::Expr(expr, _) => Self::Expr(Box::new(expr.into())),
             _ => Self::Raw(stmt.into()),
         }
     }
+}
+
+
+/// Returns a syn unit expr ()
+fn syn_unit() -> Expr {
+    parse_quote!(())
 }
