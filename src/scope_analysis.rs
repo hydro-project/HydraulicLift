@@ -1,3 +1,67 @@
+use syn::Expr;
+
+use crate::{io::IO, r_ast::*, utils::{var_name, DebugStr, Tagged}};
+
+
+impl RExpr<()> {
+    pub fn tag(self) -> RExpr<IO> {
+        match self {
+            RExpr::If(s) => RExpr::If(s.tag()),
+            RExpr::Block(s) => RExpr::Block(s.tag()),
+            RExpr::Raw(s) => RExpr::Raw(s.tag()),
+        }
+    }
+}
+
+impl RExprBlock<()> {
+    pub fn tag(self) -> RExprBlock<IO> {
+        let Self { stmt, box return_expr } = self;
+        RExprBlock { stmt: stmt.tag(), return_expr: Box::new(return_expr.tag()) }
+    }
+}
+
+impl RExprIf<()> {
+    pub fn tag(self) -> RExprIf<IO> {
+        let Self { box cond_expr, box then_expr, box else_expr } = self;
+        RExprIf { cond_expr: Box::new(cond_expr.tag()), then_expr: Box::new(then_expr.tag()), else_expr: Box::new(else_expr.tag()) }
+    }
+}
+
+impl Tagged<DebugStr<Expr>, ()> {
+    pub fn tag(self) -> Tagged<DebugStr<Expr>, IO> {
+        let Self(inner, ()) = self;
+        Tagged(inner, IO { input_scope: vec![var_name()], output_scope: vec![var_name()] }) 
+        //TODO: actually implement this
+    }
+}
+
+impl RStmt<()> {
+    pub fn tag(self) -> RStmt<IO> {
+        match self {
+            RStmt::Let(s) => RStmt::Let(s.tag()),
+            RStmt::Return(s) => RStmt::Return(s.tag()),
+            RStmt::Expr(box s) => RStmt::Expr(Box::new(s.tag())),
+        }
+    }
+}
+
+impl Tagged<RStmtLet<()>, ()> {
+    pub fn tag(self) -> Tagged<RStmtLet<IO>, IO> {
+        let Tagged(RStmtLet { ident, box value }, ()) = self;
+        let ident_clone = ident.clone();
+        Tagged(RStmtLet { ident, value: Box::new(value.tag()) }, IO { input_scope: vec![], output_scope: vec![ident_clone] })
+    }
+}
+
+impl RStmtReturn<()> {
+    pub fn tag(self) -> RStmtReturn<IO> {
+        let RStmtReturn { box value } = self;
+        RStmtReturn { value: Box::new(value.tag()) }
+    }
+}
+
+
+
 // use std::collections::BTreeSet;
 
 // use syn::Ident;
@@ -8,7 +72,7 @@
 // type Variables = BTreeSet<Ident>;
 
 
-// // tag :: needed_below -> obj<()> -> (obj<IO>, needed_above)
+// tag :: needed_below -> obj<()> -> (obj<IO>, needed_above)
 
 // impl<T> Tagged<T, ()> {
 //     fn tagged(&self, needed_below: Variables) -> (Tagged<T, IO>, Variables) {

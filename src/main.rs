@@ -1,5 +1,7 @@
 #![feature(box_patterns)]
 
+use code_gen::IntoHf;
+use hydroflow_plus::ir::HfPlusNode;
 use r_ast::RExpr;
 use syn::{parse_quote, Expr};
 mod r_ast;
@@ -39,10 +41,17 @@ pub fn main() {
         }
     };
 
-    let hex: RExpr = input.into();
-    let hex_debug = format!("{:?}", hex);
+    let rex = RExpr::from(input);
 
-    println!("fn raw() {{{}}}", hex_debug);
+    println!("fn raw() {{{:?}}}", rex);
+
+    let rex_tagged = rex.tag();
+
+    println!("fn tagged() {{{:?}}}", rex_tagged);
+
+    let hex = rex_tagged.into_hf(Box::new(HfPlusNode::Placeholder));
+
+    println!("fn hydroflow() {{{:?}}}", hex);
 
 
     // println!("fn main() {{");

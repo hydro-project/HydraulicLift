@@ -5,50 +5,52 @@ use syn::{Expr, Ident, Stmt};
 
 use crate::utils::{DebugStr, Tagged};
 
+// TODO - Make tagged ast
+
+
 /// R AST - Extended syn AST which directly represents the Rust code.
 /// New AST constructs are relevant for HF+ translation.
 /// TODO: lift all HF+ AST relevant objects to the top level. All syn encapsulated objects should be raw rust
 
 #[derive(Debug, Clone)]
-pub enum RExpr {
-    If(RExprIf),
-    Block(RExprBlock),
-    Raw(DebugStr<Expr>), //TODO: expand
+pub enum RExpr<M> {
+    If(RExprIf<M>),
+    Block(RExprBlock<M>),
+    //TODO: add await
+    Raw(Tagged<DebugStr<Expr>, M>), //TODO: expand
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprIf {
-    pub condition: Box<RExpr>,
-    pub then_block: RExprBlock,
-    pub else_block: Option<Box<RExpr>>
+pub struct RExprIf<M> {
+    pub cond_expr: Box<RExpr<M>>,
+    pub then_expr: Box<RExpr<M>>,
+    pub else_expr: Box<RExpr<M>>
 }
 
 /// sequence of statements which evaluates to a value
 #[derive(Debug, Clone)]
-pub struct RExprBlock {
-    pub stmt: RStmt,
-    pub return_expr: Box<RExpr>
+pub struct RExprBlock<M> {
+    pub stmt: RStmt<M>,
+    pub return_expr: Box<RExpr<M>>
 }
 
 #[derive(Debug, Clone)]
-pub enum RStmt {
-    LetAwait(RStmtLetAwait),
-    Return(RReturn),
-    Expr(Box<RExpr>),
-    Raw(DebugStr<Stmt>), // TODO: expand
+pub enum RStmt<M> {
+    Let(Tagged<RStmtLet<M>, M>),
+    Return(RStmtReturn<M>),
+    Expr(Box<RExpr<M>>),
 }
 
 #[derive(Debug, Clone)]
-/// currently only matching let y = x.await
-pub struct RStmtLetAwait {
-    pub definition: Ident, // y
-    pub future: Box<RExpr>, // x
+pub struct RStmtLet<M> {
+    pub ident: Ident, // y
+    pub value: Box<RExpr<M>>, // x
 }
 
 // derive debug expression
 #[derive(Debug, Clone)]
-pub struct RReturn {
-    pub value: Box<RExpr>
+pub struct RStmtReturn<M> {
+    pub value: Box<RExpr<M>>
 }
 
 
