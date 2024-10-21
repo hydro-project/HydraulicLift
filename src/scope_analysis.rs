@@ -1,6 +1,6 @@
 use syn::Expr;
 
-use crate::{io::IO, r_ast::*, utils::{var_name, DebugStr, Tagged}};
+use crate::{io::IO, r_ast::*, utils::{ident, DebugStr, Tagged}};
 
 
 impl RExpr<()> {
@@ -30,7 +30,7 @@ impl RExprIf<()> {
 impl Tagged<DebugStr<Expr>, ()> {
     pub fn tag(self) -> Tagged<DebugStr<Expr>, IO> {
         let Self(inner, ()) = self;
-        Tagged(inner, IO { input_scope: vec![var_name()], output_scope: vec![var_name()] }) 
+        Tagged(inner, IO { input_scope: vec![ident("todo")], output_scope: vec![ident("todo")] }) 
         //TODO: actually implement this
     }
 }
@@ -40,7 +40,6 @@ impl RStmt<()> {
         match self {
             RStmt::Let(s) => RStmt::Let(s.tag()),
             RStmt::Return(s) => RStmt::Return(s.tag()),
-            RStmt::Expr(box s) => RStmt::Expr(Box::new(s.tag())),
         }
     }
 }

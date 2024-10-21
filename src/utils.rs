@@ -8,8 +8,8 @@ use syn::Ident;
 
 
 /// Todo: make this better and not constant lol
-pub fn var_name() -> Ident {
-    Ident::new("testvar", Span::call_site())
+pub fn ident(name: &str) -> Ident {
+    Ident::new(name, Span::call_site())
 }
 
 /// Wrapping a raw structure with some metadata

@@ -70,7 +70,7 @@ impl From<Block> for RExprBlock<()> {
 
         // add unit stmt before to make expr block
         Self {
-            stmt: RStmt::Expr(Box::new(syn_unit().into())),
+            stmt: RStmt::Let(RStmtLet::from(syn_unit()).into()),
             return_expr: Box::new(return_expr),
         }
 
@@ -85,6 +85,13 @@ impl From<Block> for RExprBlock<()> {
 
         // [a, b, E]
         // Block { a, Block {b, E}}
+    }
+}
+
+/// expr; -> let _ = expr;
+impl From<Expr> for RStmtLet<()> {
+    fn from(value: Expr) -> Self {
+        Self { ident: parse_quote!(_), value: Box::new(value.into()) }
     }
 }
 
@@ -106,7 +113,7 @@ impl From<Stmt> for RStmt<()> {
             Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RStmtReturn {
                 value: Box::new(expr.map(|box e| e).unwrap_or(syn_unit()).into()),
             }),
-            Stmt::Expr(expr, _) => Self::Expr(Box::new(expr.into())),
+            Stmt::Expr(expr, _) => Self::Let(RStmtLet::from(expr).into()),
             _ => panic!("Unable to parse {:?}. This is probably not supported by Rust to Hydro yet.", stmt),
         }
     }

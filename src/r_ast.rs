@@ -38,7 +38,6 @@ pub struct RExprBlock<M> {
 pub enum RStmt<M> {
     Let(Tagged<RStmtLet<M>, M>),
     Return(RStmtReturn<M>),
-    Expr(Box<RExpr<M>>),
 }
 
 #[derive(Debug, Clone)]
