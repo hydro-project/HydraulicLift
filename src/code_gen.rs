@@ -211,9 +211,10 @@ macro_rules! hf (
             let inputs = $i;
             let outputs = $o;
             let expr: ::syn::Expr = ::syn::parse_quote! {
-                |#inputs|
-                $($body)*
-                #outputs
+                |#inputs| {
+                    $($body)*
+                    #outputs
+                }
             };
             let debug_expr: ::hydroflow_plus::ir::DebugExpr = expr.into();
             debug_expr
@@ -352,7 +353,7 @@ impl<'a> HfGen<'a> for HBlockEnd {
 impl<'a> HfGen<'a> for HExprRaw {
     fn gen(input: Box<HfPlusNode<'a>>, Self { expr, scope, next }: Self) -> HfPlusNode<'a> {
         let expr_scope = TokTup(scope, ident("value")); 
-        let f = hf!(&expr_scope.0 => &expr_scope, let value = #expr);
+        let f = hf!(&expr_scope.0 => &expr_scope, let value = #expr;);
         let node = HfPlusNode::Map { input, f };
         HfGen::gen(Box::new(node), next)
     }

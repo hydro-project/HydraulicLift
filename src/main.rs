@@ -66,7 +66,7 @@ pub fn main() {
 }
 
 fn test() {
-    HEntryPoint::gen(
+    let hf = HEntryPoint::gen(
         Box::new(HfPlusNode::Placeholder),
         HEntryPoint {
             next: HExprConsumer::Bind(HExprBind {
@@ -80,4 +80,6 @@ fn test() {
             }),
         },
     );
+
+    println!("fn test(){{{:?}}}", hf);
 }
