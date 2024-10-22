@@ -107,45 +107,84 @@
 // NEW
 // nodes are just processing, they are externally linked
 
+use quote::ToTokens;
 use syn::{parse_quote, Expr, Ident};
 
 use crate::{io::Scope, utils::ident};
 
-// matches: x | destructured_x
-enum Pattern<T> {
-    Ident(Ident),
-    Destructure(T),
-}
-
-struct TokTup<T, U>(T, U);
 
 // matches: scope | (a, b, c)
-type ScopePattern = Pattern<Scope>;
+pub enum ScopePat {
+    Ident(Ident),
+    Destructured(Scope)
+}
 // matches: expr | (value, scope) | (a, (b, c, d))
-type ExprPattern = Pattern<TokTup<Ident, ScopePattern>>;
-
-trait HNode<I, O> {}
-
-struct HExpr {
-    expr: Expr,
-    scope: Scope,
+pub enum ExprPat{
+    Ident(Ident),
+    Destructured(Ident, ScopePat)
 }
 
-impl HNode<ScopePattern, ExprPattern> for HExpr {}
-
-struct HBlock<T: HNode<ScopePattern, U>, U> {
-    stmt: HBind,
-    eval: T,
+pub trait HPattern {
+    
 }
 
-impl<T: HNode<ScopePattern, U>, U> HNode<ScopePattern, ExprPattern> for HBlock<T, U> {}
+impl HPattern for ScopePat {
 
-struct HBind {
-    definition: Ident,
-    expr: Box<dyn HNode<ScopePattern, ExprPattern>>,
 }
 
-impl HNode<ScopePattern, ExprPattern> for HBind {}
+impl HPattern for Ident {
+    
+}
+
+impl HPattern for ExprPat {
+    
+}
+
+pub trait HNode {
+    type I: HPattern;
+    type O: HPattern;
+}
+
+pub struct HExpr {
+    pub expr: Expr,
+    pub scope: Scope,
+}
+
+impl HNode for HExpr {
+    type I = ScopePat;
+    type O = ExprPat;
+}
+
+pub struct HBlock<O> {
+    pub stmt: Box<dyn HNode<I = ScopePat, O = ScopePat>>,
+    pub eval: Box<dyn HNode<I = ScopePat, O = O>>,
+}
+
+impl<O: HPattern> HNode for HBlock<O> {
+    type I = ScopePat;
+    type O = O;
+}
+
+pub struct HBind {
+    pub definition: Ident,
+    pub expr: Box<dyn HNode<I = ScopePat, O = ExprPat>>,
+}
+
+impl HNode for HBind {
+    type I = ScopePat;
+    type O = ScopePat;
+}
+
+pub struct HBranch<OT: HPattern, OF: HPattern> {
+    pub cond: Box<dyn HNode<I = ScopePat, O = ExprPat>>,
+    pub branch_t: Box<dyn HNode<I = ScopePat, O = OT>>,
+    pub branch_f: Box<dyn HNode<I = ScopePat, O = OF>>,
+}
+
+impl<O: HPattern> HNode for HBranch<O, O> {
+    type I = ScopePat;
+    type O = O;
+}
 
 fn test() {
     let out = {
@@ -158,22 +197,78 @@ fn test() {
     // input is a scope (will be wrapped around input value)
 
     let whole = HBlock {
-        stmt: HBind {
+        stmt: Box::new(HBind {
             definition: ident("x"),
             expr: Box::new(HExpr {
                 expr: parse_quote!(1),
                 scope: Scope::empty(),
             }),
-        },
-        eval: HBlock {
-            stmt: HBind {
+        }),
+        eval: Box::new(HBlock {
+            stmt: Box::new(HBind {
                 definition: ident("y"),
                 expr: Box::new(HExpr {
                     expr: parse_quote!(2),
                     scope: Scope::empty().with(ident("x")),
                 }),
-            },
-            eval: HExpr { expr: parse_quote!(x+y), scope: Scope::empty().with(ident("x")).with(ident("y")) },
-        },
+            }),
+            eval: Box::new(HExpr {
+                expr: parse_quote!(x + y),
+                scope: Scope::empty().with(ident("x")).with(ident("y")),
+            }),
+        }),
+    };
+
+    let output = {
+        let x = 1;
+        if x > 2 {
+            let y = 2;
+            x + y
+        } else {
+            let z = 3;
+            x + z
+        }
+    };
+
+    let whole = HBlock {
+        stmt: Box::new(HBind {
+            definition: ident("x"),
+            expr: Box::new(HExpr {
+                expr: parse_quote!(1),
+                scope: Scope::empty(),
+            }),
+        }),
+        eval: Box::new(HBranch {
+            cond: Box::new(HExpr {
+                expr: parse_quote!(x > 2),
+                scope: Scope::empty().with(ident("x")),
+            }),
+            branch_t: Box::new(HBlock {
+                stmt: Box::new(HBind {
+                    definition: ident("y"),
+                    expr: Box::new(HExpr {
+                        expr: parse_quote!(2),
+                        scope: Scope::empty().with(ident("x")),
+                    }),
+                }),
+                eval: Box::new(HExpr {
+                    expr: parse_quote!(x+y),
+                    scope: Scope::empty().with(ident("x")).with(ident("y")),
+                }),
+            }),
+            branch_f: Box::new(HBlock {
+                stmt: Box::new(HBind {
+                    definition: ident("z"),
+                    expr: Box::new(HExpr {
+                        expr: parse_quote!(3),
+                        scope: Scope::empty().with(ident("x")),
+                    }),
+                }),
+                eval: Box::new(HExpr {
+                    expr: parse_quote!(x+z),
+                    scope: Scope::empty().with(ident("x")).with(ident("z")),
+                }),
+            }),
+        }),
     };
 }

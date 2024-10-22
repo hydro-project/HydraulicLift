@@ -1,6 +1,6 @@
 use syn::Expr;
 
-use crate::{io::IO, r_ast::*, utils::{ident, DebugStr, Tagged}};
+use crate::{io::{Scope, IO}, r_ast::*, utils::{ident, DebugStr, Tagged}};
 
 
 impl RExpr<()> {
@@ -30,7 +30,7 @@ impl RExprIf<()> {
 impl Tagged<DebugStr<Expr>, ()> {
     pub fn tag(self) -> Tagged<DebugStr<Expr>, IO> {
         let Self(inner, ()) = self;
-        Tagged(inner, IO { input_scope: vec![ident("todo")], output_scope: vec![ident("todo")] }) 
+        Tagged(inner, IO { input_scope: Scope::empty(), output_scope: Scope::empty() }) 
         //TODO: actually implement this
     }
 }
@@ -48,7 +48,7 @@ impl Tagged<RStmtLet<()>, ()> {
     pub fn tag(self) -> Tagged<RStmtLet<IO>, IO> {
         let Tagged(RStmtLet { ident, box value }, ()) = self;
         let ident_clone = ident.clone();
-        Tagged(RStmtLet { ident, value: Box::new(value.tag()) }, IO { input_scope: vec![], output_scope: vec![ident_clone] })
+        Tagged(RStmtLet { ident, value: Box::new(value.tag()) }, IO { input_scope: Scope::empty(), output_scope: Scope::empty().with(ident_clone) })
     }
 }
 

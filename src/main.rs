@@ -2,10 +2,8 @@
 
 use std::collections::BTreeSet;
 
-use code_gen::HfGen;
 use hydroflow_plus::ir::HfPlusNode;
 use io::Scope;
-use ir::{HEntryPoint, HExprBind, HExprConsumer, HExprRaw, HReturn};
 use r_ast::RExpr;
 use syn::{parse_quote, Expr};
 use utils::ident;
@@ -18,6 +16,7 @@ mod r_ast;
 mod scope_analysis;
 mod utils;
 mod ir2;
+mod transform;
 
 //steps:
 // 1) Encapsulate special-cased rust logic, pulling all dataflow-relevant operations above the barrier
@@ -67,20 +66,20 @@ pub fn main() {
 }
 
 fn test() {
-    let hf = HEntryPoint::gen(
-        Box::new(HfPlusNode::Placeholder),
-        HEntryPoint {
-            next: HExprConsumer::Bind(HExprBind {
-                definition: ident("hi"),
-                scope: Scope::empty(),
-                next: HLink::Expr(Box::new(HExprRaw {
-                    expr: parse_quote!(hi),
-                    scope: Scope(BTreeSet::from([ident("hi")])),
-                    next: HExprConsumer::Return(HReturn),
-                })),
-            }),
-        },
-    );
+    // let hf = HEntryPoint::gen(
+    //     Box::new(HfPlusNode::Placeholder),
+    //     HEntryPoint {
+    //         next: HExprConsumer::Bind(HExprBind {
+    //             definition: ident("hi"),
+    //             scope: Scope::empty(),
+    //             next: HLink::Expr(Box::new(HExprRaw {
+    //                 expr: parse_quote!(hi),
+    //                 scope: Scope(BTreeSet::from([ident("hi")])),
+    //                 next: HExprConsumer::Return(HReturn),
+    //             })),
+    //         }),
+    //     },
+    // );
 
-    println!("fn test(){{{:?}}}", hf);
+    // println!("fn test(){{{:?}}}", hf);
 }
