@@ -43,7 +43,7 @@ pub enum RStmt<M> {
 
 #[derive(Debug, Clone)]
 pub struct RStmtLet<M> {
-    pub ident: Ident, // y
+    pub id: Ident, // y
     pub value: Box<RExpr<M>>, // x
 }
 

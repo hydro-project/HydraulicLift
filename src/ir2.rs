@@ -278,21 +278,33 @@
 // nodes are simply pipelines
 // branches contain branch & merge
 
+use std::{ops::Add, rc::Rc};
+
 use syn::{parse_quote, Expr, Ident};
 
 use crate::utils::ident;
 
-/// :: value | (value, scope)
-pub struct HExprIf {
-    cond: Box<Hor<HExpr>>,
-    if_t: Box<Hor<HExpr>>,
-    if_f: Box<Hor<HExpr>>,
+// :: stream value
+pub enum HOutput {
+    None,
+    Output(HReturn, Box<HOutput>)
 }
 
-// :: T | value
-pub enum Hor<T> {
-    Inner(T),
-    Return(HReturn)
+impl HOutput {
+    pub fn new() -> HOutput {
+        Self::None
+    }
+
+    pub fn with(self, other: HReturn) -> Self {
+        Self::Output(other, Box::new(self))
+    }
+
+    pub fn union(self, other: Self) -> Self {
+        match other {
+            Self::None => self,
+            Self::Output(cur, box rest) => self.with(cur).union(rest),
+        }
+    }
 }
 
 /// :: value
@@ -303,7 +315,14 @@ pub struct HReturn {
 /// :: (value, scope)
 pub enum HExpr {
     Raw(HExprRaw),
+    // A merge point
+    Union(HExprUnion),
+    /// A branch point
+    Shared(Rc<HExpr>),
 }
+
+pub struct HExprUnion(pub Box<HExpr>, pub Box<HExpr>);
+
 
 pub struct HExprRaw {
     pub input: HScope,
@@ -312,13 +331,20 @@ pub struct HExprRaw {
 
 /// :: scope
 pub enum HScope {
-    Bind(HBind),
     Input(HInput),
+    Bind(HBind),
+    Filter(HFilter),
 }
 
 pub struct HBind {
     pub input: Box<HExpr>,
     pub id: Ident,
+}
+
+/// Filters for cond == expr
+pub struct HFilter {
+    pub cond: Box<HExpr>,
+    pub expr: Expr
 }
 
 pub struct HInput;

@@ -46,9 +46,9 @@ impl RStmt<()> {
 
 impl Tagged<RStmtLet<()>, ()> {
     pub fn tag(self) -> Tagged<RStmtLet<IO>, IO> {
-        let Tagged(RStmtLet { ident, box value }, ()) = self;
+        let Tagged(RStmtLet { id: ident, box value }, ()) = self;
         let ident_clone = ident.clone();
-        Tagged(RStmtLet { ident, value: Box::new(value.tag()) }, IO { input_scope: Scope::empty(), output_scope: Scope::empty().with(ident_clone) })
+        Tagged(RStmtLet { id: ident, value: Box::new(value.tag()) }, IO { input_scope: Scope::empty(), output_scope: Scope::empty().with(ident_clone) })
     }
 }
 

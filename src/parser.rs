@@ -91,7 +91,7 @@ impl From<Block> for RExprBlock<()> {
 /// expr; -> let _ = expr;
 impl From<Expr> for RStmtLet<()> {
     fn from(value: Expr) -> Self {
-        Self { ident: parse_quote!(_), value: Box::new(value.into()) }
+        Self { id: parse_quote!(_), value: Box::new(value.into()) }
     }
 }
 
@@ -107,7 +107,7 @@ impl From<Stmt> for RStmt<()> {
                     }),
                 ..
             }) => Self::Let(RStmtLet {
-                ident,
+                id: ident,
                 value: Box::new(expr.into()),
             }.into()),
             Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RStmtReturn {
