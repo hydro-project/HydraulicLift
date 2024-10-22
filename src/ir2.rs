@@ -7,7 +7,7 @@
 // /// Hydroflow function, input and output of dataflow sub-tree.
 // trait HF<I, O> {}
 
-// /// Generate a closure 
+// /// Generate a closure
 // trait HfGen<I, O> {
 //     fn hf(input_pattern: I, body: Expr, output_pattern: O) -> DebugExpr;
 // }
@@ -76,7 +76,6 @@
 //     input: HScope
 // }
 
-
 // /*
 // {
 //     let x = input;
@@ -102,6 +101,79 @@
 //     Bind(x, HInput)
 
 // */
-
 // NEW
 // scopes contain their inputs
+
+// NEW
+// nodes are just processing, they are externally linked
+
+use syn::{parse_quote, Expr, Ident};
+
+use crate::{io::Scope, utils::ident};
+
+// matches: x | destructured_x
+enum Pattern<T> {
+    Ident(Ident),
+    Destructure(T),
+}
+
+struct TokTup<T, U>(T, U);
+
+// matches: scope | (a, b, c)
+type ScopePattern = Pattern<Scope>;
+// matches: expr | (value, scope) | (a, (b, c, d))
+type ExprPattern = Pattern<TokTup<Ident, ScopePattern>>;
+
+trait HNode<I, O> {}
+
+struct HExpr {
+    expr: Expr,
+    scope: Scope,
+}
+
+impl HNode<ScopePattern, ExprPattern> for HExpr {}
+
+struct HBlock<T: HNode<ScopePattern, U>, U> {
+    stmt: HBind,
+    eval: T,
+}
+
+impl<T: HNode<ScopePattern, U>, U> HNode<ScopePattern, ExprPattern> for HBlock<T, U> {}
+
+struct HBind {
+    definition: Ident,
+    expr: Box<dyn HNode<ScopePattern, ExprPattern>>,
+}
+
+impl HNode<ScopePattern, ExprPattern> for HBind {}
+
+fn test() {
+    let out = {
+        let x = 1;
+        {
+            let y = 2;
+            x + y
+        }
+    };
+    // input is a scope (will be wrapped around input value)
+
+    let whole = HBlock {
+        stmt: HBind {
+            definition: ident("x"),
+            expr: Box::new(HExpr {
+                expr: parse_quote!(1),
+                scope: Scope::empty(),
+            }),
+        },
+        eval: HBlock {
+            stmt: HBind {
+                definition: ident("y"),
+                expr: Box::new(HExpr {
+                    expr: parse_quote!(2),
+                    scope: Scope::empty().with(ident("x")),
+                }),
+            },
+            eval: HExpr { expr: parse_quote!(x+y), scope: Scope::empty().with(ident("x")).with(ident("y")) },
+        },
+    };
+}
