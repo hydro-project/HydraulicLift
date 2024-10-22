@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use code_gen::HfGen;
 use hydroflow_plus::ir::HfPlusNode;
 use io::Scope;
-use ir::{HEntryPoint, HExprBind, HExprConsumer, HExprRaw, HLink, HReturn};
+use ir::{HEntryPoint, HExprBind, HExprConsumer, HExprRaw, HReturn};
 use r_ast::RExpr;
 use syn::{parse_quote, Expr};
 use utils::ident;
@@ -17,6 +17,7 @@ mod parser;
 mod r_ast;
 mod scope_analysis;
 mod utils;
+mod ir2;
 
 //steps:
 // 1) Encapsulate special-cased rust logic, pulling all dataflow-relevant operations above the barrier

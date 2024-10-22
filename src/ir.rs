@@ -22,6 +22,7 @@ pub enum HExprConsumer {
     Map(HExprMap),
     Bind(HExprBind),
     Branch(HExprBranch),
+    BlockEnd(HBlockEnd),
     Return(HReturn),
 }
 
@@ -39,30 +40,23 @@ pub struct HExprBind {
     pub definition: Ident,
     /// Does not contain ident
     pub scope: Scope,
-    pub next: HLink,
+    pub next: Box<HExprRaw>,
 }
 
 /// Branches based on a boolean expression value.
 /// :: (true, scope)  -> scope
 /// :: (false, scope) -> scope
 pub struct HExprBranch {
-    pub next_true: HLink,
-    pub next_false: HLink,
-}
-
-/// A link between nodes.
-/// :: scope -> _
-pub enum HLink {
-    BlockEnd(HBlockEnd),
-    Expr(Box<HExprRaw>),
+    pub next_true: Box<HExprRaw>,
+    pub next_false: Box<HExprRaw>,
 }
 
 /// The end of a block.
-/// :: old_scope -> new_scope
+/// :: (value, old_scope) -> (value, new_scope)
 pub struct HBlockEnd {
     pub old_scope: Scope,
     pub new_scope: Scope,
-    pub next: Box<HLink>,
+    pub next: Box<HExprConsumer>,
 }
 
 /// Entrypoint, turns input into expression value.
@@ -77,7 +71,7 @@ pub struct HEntryPoint {
 
 let x = 5;
 let y = if x > 5 {
-    x + 1
+    return x + 1;
 } else {
     x + 2
 }
@@ -86,7 +80,12 @@ x + y
 
 =>
 
+PROBLEM: 
 
+expr(5) -> bind(x) -> expr(x > 5) -> tee()
 
+true? -> expr(x+1) -> return
+false? -> expr(x+2) -> ret_expr
 
+union() -> bind(y) -> expr(x+y)
 */
