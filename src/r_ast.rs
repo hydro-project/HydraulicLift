@@ -31,7 +31,7 @@ pub struct RExprIf<M> {
 #[derive(Debug, Clone)]
 pub struct RExprBlock<M> {
     pub stmt: RStmt<M>,
-    pub return_expr: Box<RExpr<M>>
+    pub expr: Box<RExpr<M>>
 }
 
 #[derive(Debug, Clone)]

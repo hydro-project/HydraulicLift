@@ -15,8 +15,8 @@ impl RExpr<()> {
 
 impl RExprBlock<()> {
     pub fn tag(self) -> RExprBlock<IO> {
-        let Self { stmt, box return_expr } = self;
-        RExprBlock { stmt: stmt.tag(), return_expr: Box::new(return_expr.tag()) }
+        let Self { stmt, box expr } = self;
+        RExprBlock { stmt: stmt.tag(), expr: Box::new(expr.tag()) }
     }
 }
 

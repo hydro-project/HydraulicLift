@@ -64,14 +64,14 @@ impl From<Block> for RExprBlock<()> {
         for stmt in stmts.into_iter().rev() {
             return_expr = RExpr::Block(Self {
                 stmt: stmt.into(),
-                return_expr: Box::new(return_expr),
+                expr: Box::new(return_expr),
             })
         }
 
         // add unit stmt before to make expr block
         Self {
             stmt: RStmt::Let(RStmtLet::from(syn_unit()).into()),
-            return_expr: Box::new(return_expr),
+            expr: Box::new(return_expr),
         }
 
         // []
