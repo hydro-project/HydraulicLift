@@ -5,7 +5,10 @@ use syn::{
     Pat, PatIdent, PatLit, Stmt,
 };
 
-use crate::{r_ast::*, utils::DebugStr};
+use crate::{
+    r_ast::*,
+    utils::{ident, DebugStr},
+};
 
 /// Lifts syn objects into
 
@@ -14,8 +17,14 @@ impl From<Expr> for RExpr<()> {
         match value {
             Expr::Block(s) => Self::Block(s.into()),
             Expr::If(s) => Self::If(s.into()),
-            s => Self::Raw(s.into()),
+            s => Self::Raw(RExprRaw::from(s).into()),
         }
+    }
+}
+
+impl From<Expr> for RExprRaw {
+    fn from(value: Expr) -> Self {
+        Self(value.into())
     }
 }
 
@@ -91,7 +100,10 @@ impl From<Block> for RExprBlock<()> {
 /// expr; -> let _ = expr;
 impl From<Expr> for RStmtLet<()> {
     fn from(value: Expr) -> Self {
-        Self { id: parse_quote!(_), value: Box::new(value.into()) }
+        Self {
+            id: ident("_"),
+            value: Box::new(value.into()),
+        }
     }
 }
 
@@ -100,21 +112,23 @@ impl From<Stmt> for RStmt<()> {
         match stmt {
             Stmt::Local(Local {
                 pat: Pat::Ident(PatIdent { ident, .. }),
-                init:
-                    Some(LocalInit {
-                        box expr,
-                        ..
-                    }),
+                init: Some(LocalInit { box expr, .. }),
                 ..
-            }) => Self::Let(RStmtLet {
-                id: ident,
-                value: Box::new(expr.into()),
-            }.into()),
+            }) => Self::Let(
+                RStmtLet {
+                    id: ident,
+                    value: Box::new(expr.into()),
+                }
+                .into(),
+            ),
             Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RStmtReturn {
                 value: Box::new(expr.map(|box e| e).unwrap_or(syn_unit()).into()),
             }),
             Stmt::Expr(expr, _) => Self::Let(RStmtLet::from(expr).into()),
-            _ => panic!("Unable to parse {:?}. This is probably not supported by Rust to Hydro yet.", stmt),
+            _ => panic!(
+                "Unable to parse {:?}. This is probably not supported by Rust to Hydro yet.",
+                stmt
+            ),
         }
     }
 }

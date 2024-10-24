@@ -65,8 +65,6 @@
 //     pub next: HExprConsumer
 // }
 
-
-
 // /*
 
 // let x = 5;
@@ -77,10 +75,9 @@
 // }
 // x + y
 
-
 // =>
 
-// PROBLEM: 
+// PROBLEM:
 
 // expr(5) -> bind(x) -> expr(x > 5) -> tee()
 

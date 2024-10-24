@@ -5,11 +5,8 @@ use syn::{Expr, Pat, Stmt};
 
 /// H AST - dataflow ast?
 /// e.g. Branch construct, map construct, poll_futures etc.?
-/// 
-/// 
-/// 
+///
+///
+///
 
-
-pub struct HPipe {
-    
-}
+pub struct HPipe {}

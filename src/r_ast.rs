@@ -7,52 +7,53 @@ use crate::utils::{DebugStr, Tagged};
 
 // TODO - Make tagged ast
 
-
 /// R AST - Extended syn AST which directly represents the Rust code.
 /// New AST constructs are relevant for HF+ translation.
 /// TODO: lift all HF+ AST relevant objects to the top level. All syn encapsulated objects should be raw rust
 
 #[derive(Debug, Clone)]
-pub enum RExpr<M> {
+pub enum RExpr<M = ()> {
     If(RExprIf<M>),
     Block(RExprBlock<M>),
     //TODO: add await
-    Raw(Tagged<DebugStr<Expr>, M>), //TODO: expand
+    Raw(Tagged<RExprRaw, M>), //TODO: expand
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprIf<M> {
+pub struct RExprRaw(pub DebugStr<Expr>);
+
+#[derive(Debug, Clone)]
+pub struct RExprIf<M = ()> {
     pub cond_expr: Box<RExpr<M>>,
     pub then_expr: Box<RExpr<M>>,
-    pub else_expr: Box<RExpr<M>>
+    pub else_expr: Box<RExpr<M>>,
 }
 
 /// sequence of statements which evaluates to a value
 #[derive(Debug, Clone)]
-pub struct RExprBlock<M> {
+pub struct RExprBlock<M = ()> {
     pub stmt: RStmt<M>,
-    pub expr: Box<RExpr<M>>
+    pub expr: Box<RExpr<M>>,
 }
 
 #[derive(Debug, Clone)]
-pub enum RStmt<M> {
+pub enum RStmt<M = ()> {
     Let(Tagged<RStmtLet<M>, M>),
     Return(RStmtReturn<M>),
     // TODO: add expressions here?
 }
 
 #[derive(Debug, Clone)]
-pub struct RStmtLet<M> {
-    pub id: Ident, // y
+pub struct RStmtLet<M = ()> {
+    pub id: Ident,            // y
     pub value: Box<RExpr<M>>, // x
 }
 
 // derive debug expression
 #[derive(Debug, Clone)]
-pub struct RStmtReturn<M> {
-    pub value: Box<RExpr<M>>
+pub struct RStmtReturn<M = ()> {
+    pub value: Box<RExpr<M>>,
 }
-
 
 // Block = (Stmt, Option<Scoped<Block>>)
 // RBlock = (RStmt, Option<RExpr>)

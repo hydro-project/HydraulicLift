@@ -1,8 +1,14 @@
+use std::rc::Rc;
+
 use syn::Expr;
 
-use crate::{io::{Scope, IO}, r_ast::*, utils::{ident, DebugStr, Tagged}};
+use crate::{
+    io::{Scope, IO},
+    r_ast::*,
+    utils::{ident, DebugStr, Tagged},
+};
 
-
+// TODO: tag<T> :: T<()> -> output_scope -> (T<IO>, input_scope)
 impl RExpr<()> {
     pub fn tag(self) -> RExpr<IO> {
         match self {
@@ -16,21 +22,38 @@ impl RExpr<()> {
 impl RExprBlock<()> {
     pub fn tag(self) -> RExprBlock<IO> {
         let Self { stmt, box expr } = self;
-        RExprBlock { stmt: stmt.tag(), expr: Box::new(expr.tag()) }
+        RExprBlock {
+            stmt: stmt.tag(),
+            expr: Box::new(expr.tag()),
+        }
     }
 }
 
 impl RExprIf<()> {
     pub fn tag(self) -> RExprIf<IO> {
-        let Self { box cond_expr, box then_expr, box else_expr } = self;
-        RExprIf { cond_expr: Box::new(cond_expr.tag()), then_expr: Box::new(then_expr.tag()), else_expr: Box::new(else_expr.tag()) }
+        let Self {
+            box cond_expr,
+            box then_expr,
+            box else_expr,
+        } = self;
+        RExprIf {
+            cond_expr: Box::new(cond_expr.tag()),
+            then_expr: Box::new(then_expr.tag()),
+            else_expr: Box::new(else_expr.tag()),
+        }
     }
 }
 
-impl Tagged<DebugStr<Expr>, ()> {
-    pub fn tag(self) -> Tagged<DebugStr<Expr>, IO> {
+impl Tagged<RExprRaw, ()> {
+    fn tag(self) -> Tagged<RExprRaw, IO> {
         let Self(inner, ()) = self;
-        Tagged(inner, IO { input_scope: Scope::empty(), output_scope: Scope::empty() }) 
+        Tagged(
+            inner,
+            IO {
+                ins: Scope::empty(),
+                outs: Scope::empty(),
+            },
+        )
         //TODO: actually implement this
     }
 }
@@ -46,20 +69,35 @@ impl RStmt<()> {
 
 impl Tagged<RStmtLet<()>, ()> {
     pub fn tag(self) -> Tagged<RStmtLet<IO>, IO> {
-        let Tagged(RStmtLet { id: ident, box value }, ()) = self;
+        let Tagged(
+            RStmtLet {
+                id: ident,
+                box value,
+            },
+            (),
+        ) = self;
         let ident_clone = ident.clone();
-        Tagged(RStmtLet { id: ident, value: Box::new(value.tag()) }, IO { input_scope: Scope::empty(), output_scope: Scope::empty().with(ident_clone) })
+        Tagged(
+            RStmtLet {
+                id: ident,
+                value: Box::new(value.tag()),
+            },
+            IO {
+                ins: Scope::empty(),
+                outs: Scope::empty().with(ident_clone),
+            },
+        )
     }
 }
 
 impl RStmtReturn<()> {
     pub fn tag(self) -> RStmtReturn<IO> {
         let RStmtReturn { box value } = self;
-        RStmtReturn { value: Box::new(value.tag()) }
+        RStmtReturn {
+            value: Box::new(value.tag()),
+        }
     }
 }
-
-
 
 // use std::collections::BTreeSet;
 
@@ -69,7 +107,6 @@ impl RStmtReturn<()> {
 // use crate::r_ast::RStmt;
 
 // type Variables = BTreeSet<Ident>;
-
 
 // tag :: needed_below -> obj<()> -> (obj<IO>, needed_above)
 
@@ -121,7 +158,7 @@ impl RStmtReturn<()> {
 
 // // impl From<RExprIf<()>> for Tagged<RExprIf<IO>> {
 // //     fn from(RExprIf { condition, then_block, else_block }: RExprIf<()>) -> Self {
-        
+
 // //     }
 // // }
 
@@ -159,12 +196,12 @@ impl RStmtReturn<()> {
 
 // // impl From<Raw<syn::Expr, ()>> for Tagged<Raw<syn::Expr, IO>> {
 // //     fn from(value: Raw<syn::Expr, ()>) -> Self {
-        
+
 // //     }
 // // }
 
 // // impl From<Raw<syn::Stmt, ()>> for Tagged<Raw<syn::Stmt, IO>> {
 // //     fn from(value: Raw<syn::Stmt, ()>) -> Self {
-        
+
 // //     }
 // // }

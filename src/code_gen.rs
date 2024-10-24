@@ -199,7 +199,7 @@
 
 // /// Links a hydroflow input into an H node.
 // pub trait HfGen<'a> {
-//     fn gen(input: Box<HfPlusNode<'a>>, hnode: Self) -> HfPlusNode<'a>;
+//     fn gen(input: Box<HfPlusNode<'a>>, h_node: Self) -> HfPlusNode<'a>;
 // }
 
 // // TODO: value is a special keyword atm
@@ -247,8 +247,8 @@
 // }
 
 // impl<'a> HfGen<'a> for HExprConsumer {
-//     fn gen(input: Box<HfPlusNode<'a>>, hnode: Self) -> HfPlusNode<'a> {
-//         match hnode {
+//     fn gen(input: Box<HfPlusNode<'a>>, h_node: Self) -> HfPlusNode<'a> {
+//         match h_node {
 //             HExprConsumer::Map(s) => HfGen::gen(input, s),
 //             HExprConsumer::Bind(s) => HfGen::gen(input, s),
 //             HExprConsumer::Branch(s) => HfGen::gen(input, s),
@@ -333,14 +333,13 @@
 // }
 
 // impl<'a> HfGen<'a> for HLink {
-//     fn gen(input: Box<HfPlusNode<'a>>, hnode: Self) -> HfPlusNode<'a> {
-//         match hnode {
+//     fn gen(input: Box<HfPlusNode<'a>>, h_node: Self) -> HfPlusNode<'a> {
+//         match h_node {
 //             HLink::BlockEnd(s) => HfGen::gen(input, s),
 //             HLink::Expr(box s) => HfGen::gen(input, s),
 //         }
 //     }
 // }
-
 
 // impl<'a> HfGen<'a> for HBlockEnd {
 //     fn gen(input: Box<HfPlusNode<'a>>, Self { old_scope, new_scope, box next }: Self) -> HfPlusNode<'a> {
@@ -352,9 +351,516 @@
 
 // impl<'a> HfGen<'a> for HExprRaw {
 //     fn gen(input: Box<HfPlusNode<'a>>, Self { expr, scope, next }: Self) -> HfPlusNode<'a> {
-//         let expr_scope = TokTup(scope, ident("value")); 
+//         let expr_scope = TokTup(scope, ident("value"));
 //         let f = hf!(&expr_scope.0 => &expr_scope, let value = #expr;);
 //         let node = HfPlusNode::Map { input, f };
 //         HfGen::gen(Box::new(node), next)
 //     }
 // }
+
+use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
+
+use by_address::ByAddress;
+use hydroflow_plus::ir::{DebugExpr, HfPlusNode};
+use proc_macro2::TokenStream;
+use quote::quote;
+use syn::{parse_quote, Expr};
+
+use crate::{
+    io::IO,
+    ir2::{
+        ExprPat, HBind, HExpr, HExprRaw, HExprShared, HExprUnion, HFilter, HInput, HNode, HOutput,
+        HPattern, HReturn, HScope, ScopePat,
+    },
+    utils::{ident, Tagged},
+};
+
+// /// Constructs a quoted closure which maps from input to output (with optional body)
+// macro_rules! hfunc (
+//     {$i:expr => $o:expr, $($body:tt)*} => {
+//         {
+//             let inputs = $i;
+//             let outputs = $o;
+//             let expr: ::syn::Expr = ::syn::parse_quote! {
+//                 |#inputs| {
+//                     $($body)*
+//                     #outputs
+//                 }
+//             };
+//             let debug_expr: ::hydroflow_plus::ir::DebugExpr = expr.into();
+//             debug_expr
+//         }
+//     };
+//     {$i:expr => $o:expr} => {
+//         hf! {$i => $o,}
+//     }
+// );
+
+/// Generates hydroflow+ node from hnode, which consumes the specified input.
+pub fn generate<'a>(h_node: HOutput, input: HfPlusNode<'a>) -> Box<HfPlusNode<'a>> {
+    let mut memos = HfMemos::new();
+    memos.put(Rc::new(HInput), input);
+    HOutput::gen(h_node, memos).1
+}
+
+trait HfGen<'a>: HNode {
+    /// Generates Hydroflow+ from h_node. memos must contain inputs.
+    fn gen(h_node: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>);
+}
+
+// trait HfGenFuncBody<'a, O: HPattern>: HfGen<'a> + HNode<O = O> {
+//     fn gen_func_body<U, I: HPattern>(
+//         h_node: U,
+//         hf_input: Rc<HfPlusNode<'a>>,
+//         input_scope: I,
+//         output_scope: O,
+//         body: TokenStream,
+//     ) -> (Box<HfPlusNode<'a>>, DebugExpr)
+//     where
+//         U: HfGen<'a> + HNode<O = I>;
+// }
+
+// trait HfGenFunc<'a, O: HPattern>: HfGenFuncBody<'a, O> + HfGen<'a> + HNode<O = O> {
+//     fn gen_func<U, I: HPattern>(
+//         h_node: U,
+//         hf_input: Rc<HfPlusNode<'a>>,
+//         input_scope: I,
+//         output_scope: O,
+//     ) -> (Box<HfPlusNode<'a>>, DebugExpr)
+//     where
+//         U: HfGen<'a> + HNode<O = I>;
+// }
+
+// impl<'a, T, O: HPattern> HfGenFuncBody<'a, O> for T
+// where
+//     T: HfGen<'a> + HNode<O = O>,
+// {
+//     fn gen_func_body<U, I: HPattern>(
+//         h_node: U,
+//         hf_input: Rc<HfPlusNode<'a>>,
+//         input_pattern: I,
+//         output_pattern: O,
+//         body: TokenStream,
+//     ) -> (Box<HfPlusNode<'a>>, DebugExpr)
+//     where
+//         U: HfGen<'a> + HNode<O = I>,
+//     {
+//         let hf_node = U::gen(h_node, hf_input);
+//         let f: Expr = parse_quote! {
+//             |#input_pattern|
+//             #body
+//             #output_pattern
+//         };
+//         (hf_node, f.into())
+//     }
+// }
+
+// impl<'a, T, O: HPattern> HfGenFunc<'a, O> for T
+// where
+//     T: HfGenFuncBody<'a, O> + HfGen<'a> + HNode<O = O>,
+// {
+//     fn gen_func<U, I: HPattern>(
+//         h_node: U,
+//         hf_input: Rc<HfPlusNode<'a>>,
+//         input_scope: I,
+//         output_scope: O,
+//     ) -> (Box<HfPlusNode<'a>>, DebugExpr)
+//     where
+//         U: HfGen<'a> + HNode<O = I>,
+//     {
+//         Self::gen_func_body(
+//             h_node,
+//             hf_input,
+//             input_scope,
+//             output_scope,
+//             TokenStream::new(),
+//         )
+//     }
+// }
+
+/// Memoized conversion from K (by reference) to a HF+ node.
+pub struct HfMemo<'a, K: Clone> {
+    map: HashMap<ByAddress<Rc<K>>, Rc<RefCell<HfPlusNode<'a>>>>,
+}
+
+pub trait HfMemoize<'a, K: Clone> {
+    /// Get a clone of the corresponding value pointer if present.
+    fn get(&self, key: &Rc<K>) -> Option<Rc<RefCell<HfPlusNode<'a>>>>;
+
+    /// Memoize a mapping.
+    fn put(&mut self, key: Rc<K>, value: HfPlusNode<'a>);
+}
+
+impl<'a, K: Clone> HfMemo<'a, K> {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+        }
+    }
+}
+
+impl<'a, K: Clone> HfMemoize<'a, K> for HfMemo<'a, K> {
+    fn get(&self, key: &Rc<K>) -> Option<Rc<RefCell<HfPlusNode<'a>>>> {
+        self.map.get(&ByAddress(key.clone())).map(Clone::clone)
+    }
+
+    fn put(&mut self, key: Rc<K>, value: HfPlusNode<'a>) {
+        self.map
+            .insert(ByAddress(key), Rc::new(RefCell::new(value)));
+    }
+}
+
+/// Memoized conversions from Rc<K: HNode> to Rc<HfPlusNode>.
+/// This allowes for constructing tees off of shared inputs
+struct HfMemos<'a> {
+    exprs: HfMemo<'a, HExpr>,
+    inputs: HfMemo<'a, HInput>,
+}
+
+impl<'a> HfMemos<'a> {
+    fn new() -> Self {
+        Self {
+            exprs: HfMemo::new(),
+            inputs: HfMemo::new(),
+        }
+    }
+}
+
+impl<'a> HfMemoize<'a, HExpr> for HfMemos<'a> {
+    fn get(&self, key: &Rc<HExpr>) -> Option<Rc<RefCell<HfPlusNode<'a>>>> {
+        self.exprs.get(key)
+    }
+
+    fn put(&mut self, key: Rc<HExpr>, value: HfPlusNode<'a>) {
+        self.exprs.put(key, value);
+    }
+}
+
+impl<'a> HfMemoize<'a, HInput> for HfMemos<'a> {
+    fn get(&self, key: &Rc<HInput>) -> Option<Rc<RefCell<HfPlusNode<'a>>>> {
+        self.inputs.get(key)
+    }
+
+    fn put(&mut self, key: Rc<HInput>, value: HfPlusNode<'a>) {
+        self.inputs.put(key, value);
+    }
+}
+
+impl<'a> HfMemos<'a> {
+    /// Either gets the memoized value, or generates and memoize it
+    fn get_or_gen<K>(self, key: Rc<K>) -> (Self, Rc<RefCell<HfPlusNode<'a>>>)
+    where
+        K: Clone + HfGen<'a>,
+        Self: HfMemoize<'a, K>,
+    {
+        if let Some(value) = self.get(&key) {
+            (self, value)
+        } else {
+            let ki: K = (*key).clone();
+            let (memos, box node) = K::gen(ki, self);
+            (memos, Rc::new(RefCell::new(node)))
+        }
+    }
+}
+
+struct HFunc<I: HPattern, O: HPattern> {
+    pub ins: I,
+    pub outs: O,
+    pub body: TokenStream,
+}
+
+impl<I: HPattern, O: HPattern> HFunc<I, O> {
+    pub fn newb(ins: I, outs: O, body: TokenStream) -> Self {
+        Self { ins, outs, body }
+    }
+
+    pub fn new(ins: I, outs: O) -> Self {
+        Self {
+            ins,
+            outs,
+            body: TokenStream::new(),
+        }
+    }
+}
+
+trait HfGenMap<'a, O>: HfGen<'a> + HNode<O = O>
+where
+    O: HPattern,
+{
+    /// Generate a node which maps over h_node.
+    fn gen_map<U, I: HPattern>(
+        h_node: U,
+        memos: HfMemos<'a>,
+        func: HFunc<I, O>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        U: HfGen<'a> + HNode<O = I>;
+}
+
+impl<'a, T, O> HfGenMap<'a, O> for T
+where
+    O: HPattern,
+    T: HfGen<'a> + HNode<O = O>,
+{
+    fn gen_map<U, I: HPattern>(
+        h_node: U,
+        memos: HfMemos<'a>,
+        HFunc { ins, outs, body }: HFunc<I, O>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        U: HfGen<'a> + HNode<O = I>,
+    {
+        let (memos, hf_node) = U::gen(h_node, memos);
+        let f_expr: Expr = parse_quote! {
+            |#ins|
+            {
+                #body
+                #outs
+            }
+        };
+        // Todo: this would be so much nicer with tuple monad
+        (
+            memos,
+            Box::new(HfPlusNode::Map {
+                f: f_expr.into(),
+                input: hf_node,
+            }),
+        )
+    }
+}
+
+trait HfGenFilterMap<'a, O>: HfGen<'a> + HNode<O = O>
+where
+    O: HPattern,
+{
+    /// Generate a node which filter maps over h_node.
+    /// The body of func should handle returning None.
+    fn gen_filter_map<U, I: HPattern>(
+        h_node: U,
+        memos: HfMemos<'a>,
+        func: HFunc<I, O>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        U: HfGen<'a> + HNode<O = I>;
+}
+
+impl<'a, T, O> HfGenFilterMap<'a, O> for T
+where
+    O: HPattern,
+    T: HfGen<'a> + HNode<O = O>,
+{
+    fn gen_filter_map<U, I: HPattern>(
+        h_node: U,
+        memos: HfMemos<'a>,
+        HFunc { ins, outs, body }: HFunc<I, O>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        U: HfGen<'a> + HNode<O = I>,
+    {
+        let (memos, hf_node) = U::gen(h_node, memos);
+        // TODO: merge function definition into HFunc?
+        let f_expr: Expr = parse_quote! {
+            |#ins|
+            {
+                #body
+                Some(#outs)
+            }
+        };
+        // Todo: this would be so much nicer with tuple monad
+        (
+            memos,
+            Box::new(HfPlusNode::Map {
+                f: f_expr.into(),
+                input: hf_node,
+            }),
+        )
+    }
+}
+
+trait HfGenTee<'a, O>: HfGen<'a> + HNode<O = O>
+where
+    O: HPattern,
+{
+    /// Generate a node which tees over a shared node.
+    /// Does this by either
+    /// 1) getting the generated node from memos,
+    /// or 2) generating it and memoizing it into memos.
+    fn gen_tee<U, I>(h_node: Rc<U>, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        I: HPattern,
+        U: HfGen<'a> + HNode<O = I> + Clone,
+        HfMemos<'a>: HfMemoize<'a, U>;
+}
+
+impl<'a, T, O> HfGenTee<'a, O> for T
+where
+    O: HPattern,
+    T: HfGen<'a> + HNode<O = O>,
+{
+    fn gen_tee<U, I>(h_node: Rc<U>, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        I: HPattern,
+        U: HfGen<'a> + HNode<O = I> + Clone,
+        HfMemos<'a>: HfMemoize<'a, U>,
+    {
+        let (memos, inner) = memos.get_or_gen(h_node);
+        (memos, Box::new(HfPlusNode::Tee { inner }))
+    }
+}
+
+trait HfGenUnion<'a, O>: HfGen<'a> + HNode<O = O>
+where
+    O: HPattern,
+{
+    /// Generate a node merges two input streams.
+    fn gen_union<U1, U2, I: HPattern>(
+        h_node1: U1,
+        h_node2: U2,
+        memos: HfMemos<'a>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        U1: HfGen<'a> + HNode<O = I>,
+        U2: HfGen<'a> + HNode<O = I>;
+}
+
+impl<'a, T, O> HfGenUnion<'a, O> for T
+where
+    O: HPattern,
+    T: HfGen<'a> + HNode<O = O>,
+{
+    fn gen_union<U1, U2, I: HPattern>(
+        h_node1: U1,
+        h_node2: U2,
+        memos: HfMemos<'a>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>)
+    where
+        U1: HfGen<'a> + HNode<O = I>,
+        U2: HfGen<'a> + HNode<O = I>,
+    {
+        let (memos, hf_node1) = U1::gen(h_node1, memos);
+        let (memos, hf_node2) = U2::gen(h_node2, memos);
+        (memos, Box::new(HfPlusNode::Union(hf_node1, hf_node2)))
+    }
+}
+
+impl<'a> HfGen<'a> for HExpr {
+    fn gen(h_node: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        match h_node {
+            HExpr::Raw(s) => HfGen::gen(s, memos),
+            HExpr::Union(s) => HfGen::gen(s, memos),
+            HExpr::Shared(s) => HfGen::gen(s, memos),
+        }
+    }
+}
+
+impl<'a> HfGen<'a> for Tagged<HExprRaw, IO> {
+    fn gen(
+        Self(HExprRaw { input, expr }, IO { ins, outs }): Self,
+        memos: HfMemos<'a>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        Self::gen_map(
+            input,
+            memos,
+            HFunc::newb(
+                ScopePat::Destructured(ins),
+                ExprPat::Destructured(ident("value"), ScopePat::Destructured(outs)),
+                quote! { let value = #expr; },
+            ),
+        )
+    }
+}
+
+impl<'a> HfGen<'a> for HExprUnion {
+    fn gen(
+        Self(box input1, box input2): Self,
+        memos: HfMemos<'a>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        Self::gen_union(input1, input2, memos)
+    }
+}
+
+impl<'a> HfGen<'a> for HExprShared {
+    fn gen(Self(input): Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        Self::gen_tee(input, memos)
+    }
+}
+
+impl<'a> HfGen<'a> for HScope {
+    fn gen(h_node: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        match h_node {
+            HScope::Input(s) => HfGen::gen(s, memos),
+            HScope::Bind(s) => HfGen::gen(s, memos),
+            HScope::Filter(s) => HfGen::gen(s, memos),
+        }
+    }
+}
+
+impl<'a> HfGen<'a> for HInput {
+    fn gen(Self: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        // Todo: UPDATE THIS TO SUPPORT MORE THAN ONE INPUT
+        let hf_input = memos.inputs.map.values().next().unwrap().clone();
+        // can't use one of my i/o type-checked functions because this is just a raw input
+        (memos, Box::new(HfPlusNode::Tee { inner: hf_input }))
+    }
+}
+
+impl<'a> HfGen<'a> for Tagged<HBind, IO> {
+    fn gen(
+        Tagged(HBind { box input, id }, IO { ins, outs }): Self,
+        memos: HfMemos<'a>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        // Todo: update this to support shadowing
+        Self::gen_map(
+            input,
+            memos,
+            HFunc::new(
+                ExprPat::Destructured(id, ScopePat::Destructured(ins)),
+                ScopePat::Destructured(outs),
+            ),
+        )
+    }
+}
+
+impl<'a> HfGen<'a> for HFilter {
+    fn gen(
+        Self { box cond, expr }: Self,
+        memos: HfMemos<'a>,
+    ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        // Todo: standardize/fix idents
+        Self::gen_filter_map(
+            cond,
+            memos,
+            HFunc::newb(
+                ExprPat::Destructured(ident("cond"), ScopePat::Ident(ident("scope"))),
+                ScopePat::Ident(ident("scope")),
+                quote! {
+                    if cond != #expr {
+                        return None
+                    }
+                },
+            ),
+        )
+    }
+}
+
+impl<'a> HfGen<'a> for HReturn {
+    fn gen(Self { input }: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        Self::gen_map(
+            input,
+            memos,
+            HFunc::new(
+                ExprPat::Destructured(ident("value"), ScopePat::Ident(ident("_"))),
+                ident("value"),
+            ),
+        )
+    }
+}
+
+impl<'a> HfGen<'a> for HOutput {
+    fn gen(Self { input, other }: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+        match other {
+            Some(box input2) => Self::gen_union(input, input2, memos),
+            None => HfGen::gen(input, memos),
+        }
+    }
+}

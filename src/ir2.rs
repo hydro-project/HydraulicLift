@@ -280,112 +280,213 @@
 
 use std::{ops::Add, rc::Rc};
 
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens};
 use syn::{parse_quote, Expr, Ident};
 
-use crate::utils::ident;
+use crate::{
+    io::{Scope, IO},
+    utils::{ident, Tagged},
+};
 
-// :: stream value
-pub enum HOutput {
-    None,
-    Output(HReturn, Box<HOutput>)
+// :: value
+#[derive(Debug, Clone)]
+pub struct HOutput {
+    pub input: HReturn,
+    pub other: Option<Box<HOutput>>,
+}
+
+impl HNode for HOutput {
+    type O = Ident;
 }
 
 impl HOutput {
-    pub fn new() -> HOutput {
-        Self::None
+    pub fn new(input: HReturn) -> Self {
+        Self { input, other: None }
     }
 
-    pub fn with(self, other: HReturn) -> Self {
-        Self::Output(other, Box::new(self))
-    }
-
-    pub fn union(self, other: Self) -> Self {
-        match other {
-            Self::None => self,
-            Self::Output(cur, box rest) => self.with(cur).union(rest),
+    pub fn with(self, input: HReturn) -> Self {
+        Self {
+            input,
+            other: Some(Box::new(self)),
         }
     }
 }
 
+pub trait HPattern: ToTokens {}
+
+/// Specifies the pattern which can match the output of the node.
+pub trait HNode {
+    type O: HPattern;
+}
+
+/// matches: scope | (a, b, c)
+pub enum ScopePat {
+    Ident(Ident),
+    Destructured(Scope),
+}
+/// matches: expr | (value, scope) | (a, (b, c, d))
+pub enum ExprPat {
+    Ident(Ident),
+    Destructured(Ident, ScopePat),
+}
+
+impl ToTokens for ScopePat {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ScopePat::Ident(ident) => ident.to_tokens(tokens),
+            ScopePat::Destructured(scope) => scope.to_tokens(tokens),
+        };
+    }
+}
+
+impl ToTokens for ExprPat {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ExprPat::Ident(ident) => ident.to_tokens(tokens),
+            ExprPat::Destructured(ident, scope_pat) => tokens.extend(quote! {(#ident, #scope_pat)}),
+        }
+    }
+}
+
+impl HPattern for ScopePat {}
+
+impl HPattern for Ident {}
+
+impl HPattern for ExprPat {}
+
+impl<T, O, M> HNode for Tagged<T, M>
+where
+    O: HPattern,
+    T: HNode<O = O>,
+{
+    type O = O;
+}
+
 /// :: value
+#[derive(Debug, Clone)]
 pub struct HReturn {
     pub input: HExpr,
 }
 
+impl HNode for HReturn {
+    type O = Ident;
+}
+
 /// :: (value, scope)
+#[derive(Debug, Clone)]
 pub enum HExpr {
-    Raw(HExprRaw),
+    Raw(Tagged<HExprRaw, IO>),
     // A merge point
     Union(HExprUnion),
     /// A branch point
-    Shared(Rc<HExpr>),
+    Shared(HExprShared),
 }
 
+impl HNode for HExpr {
+    type O = ExprPat;
+}
+
+#[derive(Debug, Clone)]
 pub struct HExprUnion(pub Box<HExpr>, pub Box<HExpr>);
 
+impl HNode for HExprUnion {
+    type O = ExprPat;
+}
 
+#[derive(Debug, Clone)]
+pub struct HExprShared(pub Rc<HExpr>);
+
+impl HNode for HExprShared {
+    type O = ExprPat;
+}
+
+#[derive(Debug, Clone)]
 pub struct HExprRaw {
     pub input: HScope,
     pub expr: Expr,
 }
 
+impl HNode for HExprRaw {
+    type O = ExprPat;
+}
+
 /// :: scope
+#[derive(Debug, Clone)]
 pub enum HScope {
     Input(HInput),
-    Bind(HBind),
+    Bind(Tagged<HBind, IO>),
     Filter(HFilter),
 }
 
+impl HNode for HScope {
+    type O = ScopePat;
+}
+
+#[derive(Debug, Clone)]
 pub struct HBind {
     pub input: Box<HExpr>,
     pub id: Ident,
 }
 
+impl HNode for HBind {
+    type O = ScopePat;
+}
+
 /// Filters for cond == expr
+#[derive(Debug, Clone)]
 pub struct HFilter {
     pub cond: Box<HExpr>,
-    pub expr: Expr
+    pub expr: Expr,
 }
 
+impl HNode for HFilter {
+    type O = ScopePat;
+}
+
+#[derive(Debug, Clone)]
 pub struct HInput;
 
-fn test() {
-    let input = 1;
-    let out = {
-        let x = input;
-        {
-            let y = 2;
-            x + y
-        }
-    };
-
-    let whole = HExpr::Raw(HExprRaw {
-        input: HScope::Bind(HBind {
-            input: Box::new(HExpr::Raw(HExprRaw {
-                input: HScope::Bind(HBind {
-                    input: Box::new(HExpr::Raw(HExprRaw {
-                        input: HScope::Input(HInput),
-                        expr: parse_quote!(input),
-                    })),
-                    id: ident("x"),
-                }),
-                expr: parse_quote!(2),
-            })),
-            id: ident("y"),
-        }),
-        expr: parse_quote!(x + y),
-    });
-
-    let out = {
-        let x = 1;
-        if x < 2 {
-            let y = 3;
-            x + y
-        } else {
-            let z = 4;
-            x + z
-        }
-    };
-
-    
+impl HNode for HInput {
+    type O = ScopePat;
 }
+
+// fn test() {
+//     let input = 1;
+//     let out = {
+//         let x = input;
+//         {
+//             let y = 2;
+//             x + y
+//         }
+//     };
+
+//     let whole = HExpr::Raw(HExprRaw {
+//         input: HScope::Bind(HBind {
+//             input: Box::new(HExpr::Raw(HExprRaw {
+//                 input: HScope::Bind(HBind {
+//                     input: Box::new(HExpr::Raw(HExprRaw {
+//                         input: HScope::Input(HInput),
+//                         expr: parse_quote!(input),
+//                     })),
+//                     id: ident("x"),
+//                 }),
+//                 expr: parse_quote!(2),
+//             })),
+//             id: ident("y"),
+//         }),
+//         expr: parse_quote!(x + y),
+//     });
+
+//     let out = {
+//         let x = 1;
+//         if x < 2 {
+//             let y = 3;
+//             x + y
+//         } else {
+//             let z = 4;
+//             x + z
+//         }
+//     };
+
+// }

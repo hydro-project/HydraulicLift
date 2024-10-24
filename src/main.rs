@@ -1,10 +1,11 @@
 #![feature(box_patterns)]
-#![feature(try_trait_v2)]
 
 use std::collections::BTreeSet;
 
+use code_gen::generate;
 use hydroflow_plus::ir::HfPlusNode;
 use io::Scope;
+use ir2::HOutput;
 use r_ast::RExpr;
 use syn::{parse_quote, Expr};
 use utils::ident;
@@ -12,12 +13,12 @@ mod code_gen;
 mod hast;
 mod io;
 mod ir;
+mod ir2;
 mod parser;
 mod r_ast;
 mod scope_analysis;
-mod utils;
-mod ir2;
 mod transform;
+mod utils;
 
 //steps:
 // 1) Encapsulate special-cased rust logic, pulling all dataflow-relevant operations above the barrier
@@ -30,36 +31,40 @@ mod transform;
 // 3) output hydroflow
 
 pub fn main() {
-    return test();
-    // let input: Expr = parse_quote! {
-    //     {
-    //         let x = 1 + 1;
-    //         if (x < 5) {
-    //             let z = 1+1;
-    //             let y = a.await;
-    //             y + z
-    //         } else if (x > 10) {
-    //             let z = a.await;
-    //             z + x
-    //         } else {
-    //             let z = a.await;
-    //             return z;
-    //         }
-    //         x + 2
-    //     }
-    // };
+    //return test();
+    let input: Expr = parse_quote! {
+        {
+            let x = 1 + 1;
+            if (x < 5) {
+                let z = 1+1;
+                let y = a.await;
+                y + z
+            } else if (x > 10) {
+                let z = a.await;
+                z + x
+            } else {
+                let z = a.await;
+                return z;
+            }
+            x + 2
+        }
+    };
 
-    // let rex = RExpr::from(input);
+    let rex = RExpr::from(input);
 
-    // println!("fn raw() {{{:?}}}", rex);
+    println!("fn R() {{{:?}}}\n\n\n", rex);
 
-    // let rex_tagged = rex.tag();
+    let rex_tagged = rex.tag();
 
-    // println!("fn tagged() {{{:?}}}", rex_tagged);
+    println!("fn R_tag() {{{:?}}}\n\n\n", rex_tagged);
 
-    // let hex = rex_tagged.into_hf(Box::new(HfPlusNode::Placeholder));
+    let hex = HOutput::from(rex_tagged);
 
-    // println!("fn hydroflow() {{{:?}}}", hex);
+    println!("fn H() {{{:?}}}\n\n\n", hex);
+
+    let hf = generate(hex, HfPlusNode::Placeholder);
+
+    println!("fn HFPlus() {{{:?}}}", hf)
 
     // // println!("fn main() {{");
     // // println!("{:?}", input);

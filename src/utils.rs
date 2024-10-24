@@ -1,11 +1,9 @@
 use std::{fmt::Debug, ops::Deref};
 
-
 use proc_macro2::{Span, TokenStream};
 
 use quote::ToTokens;
 use syn::Ident;
-
 
 /// Todo: make this better and not constant lol
 pub fn ident(name: &str) -> Ident {
@@ -21,7 +19,6 @@ impl<T> From<T> for Tagged<T, ()> {
         Self(value, ())
     }
 }
-
 
 /// Wraps a type, replaces the debug view with a string view
 #[derive(Clone)]
@@ -47,7 +44,6 @@ impl<T> Deref for DebugStr<T> {
         &self.0
     }
 }
-
 
 impl<T> From<T> for Tagged<DebugStr<T>, ()> {
     fn from(value: T) -> Self {

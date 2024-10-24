@@ -3,6 +3,8 @@ use std::{collections::BTreeSet, rc::Rc};
 use quote::{quote, ToTokens};
 use syn::Ident;
 
+/// Some collection of identifiers stored in a deterministic order.
+/// Can be tokenized into a pattern.
 #[derive(Clone, Debug)]
 pub struct Scope(pub BTreeSet<Ident>);
 
@@ -16,6 +18,12 @@ impl Scope {
         idents.insert(ident);
         Self(idents)
     }
+
+    pub fn without(&self, ident: Ident) -> Self {
+        let mut idents = self.0.clone();
+        idents.remove(&ident);
+        Self(idents)
+    }
 }
 
 impl ToTokens for Scope {
@@ -25,10 +33,9 @@ impl ToTokens for Scope {
     }
 }
 
-/// Metadata wrapping a raw syn expression or statement.
-/// Stores the input and output variables in a consistent order.
-#[derive(Debug)]
+/// Metadata wrapping a raw syn expression or a binding.
+#[derive(Debug, Clone)]
 pub struct IO {
-    pub input_scope: Scope,
-    pub output_scope: Scope,
+    pub ins: Scope,
+    pub outs: Scope,
 }
