@@ -286,7 +286,7 @@ use syn::{parse_quote, Expr, Ident};
 
 use crate::{
     io::{Scope, IO},
-    utils::{ident, Tagged},
+    utils::{ident, DebugStr, Tagged},
 };
 
 // :: value
@@ -366,7 +366,7 @@ where
 /// :: value
 #[derive(Debug, Clone)]
 pub struct HReturn {
-    pub input: HExpr,
+    pub value: HExpr,
 }
 
 impl HNode for HReturn {
@@ -403,8 +403,8 @@ impl HNode for HExprShared {
 
 #[derive(Debug, Clone)]
 pub struct HExprRaw {
+    pub expr: DebugStr<Expr>,
     pub input: HScope,
-    pub expr: Expr,
 }
 
 impl HNode for HExprRaw {
@@ -425,19 +425,19 @@ impl HNode for HScope {
 
 #[derive(Debug, Clone)]
 pub struct HBind {
-    pub input: Box<HExpr>,
     pub id: Ident,
+    pub value: Box<HExpr>,
 }
 
 impl HNode for HBind {
     type O = ScopePat;
 }
 
-/// Filters for cond == expr
+/// Filters for cond == expectation
 #[derive(Debug, Clone)]
 pub struct HFilter {
+    pub expectation: bool,
     pub cond: Box<HExpr>,
-    pub expr: Expr,
 }
 
 impl HNode for HFilter {

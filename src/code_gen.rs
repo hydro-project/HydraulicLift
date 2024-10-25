@@ -372,7 +372,7 @@ use crate::{
         ExprPat, HBind, HExpr, HExprRaw, HExprShared, HExprUnion, HFilter, HInput, HNode, HOutput,
         HPattern, HReturn, HScope, ScopePat,
     },
-    utils::{ident, Tagged},
+    utils::{ident, Tagged, TupleFunctor},
 };
 
 // /// Constructs a quoted closure which maps from input to output (with optional body)
@@ -397,10 +397,10 @@ use crate::{
 // );
 
 /// Generates hydroflow+ node from hnode, which consumes the specified input.
-pub fn generate<'a>(h_node: HOutput, input: HfPlusNode<'a>) -> Box<HfPlusNode<'a>> {
+pub fn generate<'a>(h_node: HOutput, input: HfPlusNode<'a>) -> HfPlusNode<'a> {
     let mut memos = HfMemos::new();
     memos.put(Rc::new(HInput), input);
-    HOutput::gen(h_node, memos).1
+    *HOutput::gen(h_node, memos).1
 }
 
 trait HfGen<'a>: HNode {
@@ -557,8 +557,7 @@ impl<'a> HfMemos<'a> {
             (self, value)
         } else {
             let ki: K = (*key).clone();
-            let (memos, box node) = K::gen(ki, self);
-            (memos, Rc::new(RefCell::new(node)))
+            K::gen(ki, self).map(|box node| Rc::new(RefCell::new(node)))
         }
     }
 }
@@ -610,7 +609,6 @@ where
     where
         U: HfGen<'a> + HNode<O = I>,
     {
-        let (memos, hf_node) = U::gen(h_node, memos);
         let f_expr: Expr = parse_quote! {
             |#ins|
             {
@@ -618,14 +616,10 @@ where
                 #outs
             }
         };
-        // Todo: this would be so much nicer with tuple monad
-        (
-            memos,
-            Box::new(HfPlusNode::Map {
-                f: f_expr.into(),
-                input: hf_node,
-            }),
-        )
+        U::gen(h_node, memos).map(|hf_node| Box::new(HfPlusNode::Map {
+            f: f_expr.into(),
+            input: hf_node,
+        }))
     }
 }
 
@@ -657,7 +651,6 @@ where
     where
         U: HfGen<'a> + HNode<O = I>,
     {
-        let (memos, hf_node) = U::gen(h_node, memos);
         // TODO: merge function definition into HFunc?
         let f_expr: Expr = parse_quote! {
             |#ins|
@@ -666,14 +659,10 @@ where
                 Some(#outs)
             }
         };
-        // Todo: this would be so much nicer with tuple monad
-        (
-            memos,
-            Box::new(HfPlusNode::Map {
-                f: f_expr.into(),
-                input: hf_node,
-            }),
-        )
+        U::gen(h_node, memos).map(|hf_node| Box::new(HfPlusNode::Map {
+            f: f_expr.into(),
+            input: hf_node,
+        }))
     }
 }
 
@@ -703,8 +692,7 @@ where
         U: HfGen<'a> + HNode<O = I> + Clone,
         HfMemos<'a>: HfMemoize<'a, U>,
     {
-        let (memos, inner) = memos.get_or_gen(h_node);
-        (memos, Box::new(HfPlusNode::Tee { inner }))
+        memos.get_or_gen(h_node).map(|inner| Box::new(HfPlusNode::Tee { inner }))
     }
 }
 
@@ -737,6 +725,7 @@ where
         U1: HfGen<'a> + HNode<O = I>,
         U2: HfGen<'a> + HNode<O = I>,
     {
+        
         let (memos, hf_node1) = U1::gen(h_node1, memos);
         let (memos, hf_node2) = U2::gen(h_node2, memos);
         (memos, Box::new(HfPlusNode::Union(hf_node1, hf_node2)))
@@ -806,12 +795,12 @@ impl<'a> HfGen<'a> for HInput {
 
 impl<'a> HfGen<'a> for Tagged<HBind, IO> {
     fn gen(
-        Tagged(HBind { box input, id }, IO { ins, outs }): Self,
+        Tagged(HBind { id, box value }, IO { ins, outs }): Self,
         memos: HfMemos<'a>,
     ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
         // Todo: update this to support shadowing
         Self::gen_map(
-            input,
+            value,
             memos,
             HFunc::new(
                 ExprPat::Destructured(id, ScopePat::Destructured(ins)),
@@ -823,7 +812,7 @@ impl<'a> HfGen<'a> for Tagged<HBind, IO> {
 
 impl<'a> HfGen<'a> for HFilter {
     fn gen(
-        Self { box cond, expr }: Self,
+        Self { box cond, expectation }: Self,
         memos: HfMemos<'a>,
     ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
         // Todo: standardize/fix idents
@@ -834,7 +823,7 @@ impl<'a> HfGen<'a> for HFilter {
                 ExprPat::Destructured(ident("cond"), ScopePat::Ident(ident("scope"))),
                 ScopePat::Ident(ident("scope")),
                 quote! {
-                    if cond != #expr {
+                    if cond != #expectation {
                         return None
                     }
                 },
@@ -844,9 +833,9 @@ impl<'a> HfGen<'a> for HFilter {
 }
 
 impl<'a> HfGen<'a> for HReturn {
-    fn gen(Self { input }: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
+    fn gen(Self { value }: Self, memos: HfMemos<'a>) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
         Self::gen_map(
-            input,
+            value,
             memos,
             HFunc::new(
                 ExprPat::Destructured(ident("value"), ScopePat::Ident(ident("_"))),

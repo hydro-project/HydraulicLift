@@ -15,7 +15,7 @@ use crate::{
 impl From<Expr> for RExpr<()> {
     fn from(value: Expr) -> Self {
         match value {
-            Expr::Block(s) => Self::Block(s.into()),
+            Expr::Block(ExprBlock { block: s, .. }) => s.into(),
             Expr::If(s) => Self::If(s.into()),
             s => Self::Raw(RExprRaw::from(s).into()),
         }
@@ -39,7 +39,7 @@ impl From<ExprIf> for RExprIf<()> {
     ) -> Self {
         Self {
             cond_expr: Box::new(cond.into()),
-            then_expr: Box::new(RExpr::Block(then_branch.into())),
+            then_expr: Box::new(then_branch.into()),
             else_expr: Box::new(
                 else_branch
                     .map(|(_, box expr)| expr)
@@ -50,13 +50,7 @@ impl From<ExprIf> for RExprIf<()> {
     }
 }
 
-impl From<ExprBlock> for RExprBlock<()> {
-    fn from(expr_block: ExprBlock) -> Self {
-        expr_block.block.into()
-    }
-}
-
-impl From<Block> for RExprBlock<()> {
+impl From<Block> for RExpr<()> {
     fn from(block: Block) -> Self {
         let mut stmts = block.stmts;
 
@@ -71,29 +65,12 @@ impl From<Block> for RExprBlock<()> {
         };
 
         for stmt in stmts.into_iter().rev() {
-            return_expr = RExpr::Block(Self {
+            return_expr = Self::Block(RExprBlock {
                 stmt: stmt.into(),
                 expr: Box::new(return_expr),
             })
         }
-
-        // add unit stmt before to make expr block
-        Self {
-            stmt: RStmt::Let(RStmtLet::from(syn_unit()).into()),
-            expr: Box::new(return_expr),
-        }
-
-        // []
-        // Block { (), () }
-
-        // [E]
-        // Block { (), E }
-
-        // [a]
-        // Block { a, () }
-
-        // [a, b, E]
-        // Block { a, Block {b, E}}
+        return_expr
     }
 }
 

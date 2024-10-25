@@ -4,11 +4,12 @@ use std::collections::BTreeSet;
 
 use code_gen::generate;
 use hydroflow_plus::ir::HfPlusNode;
-use io::Scope;
+use io::{Scope, IO};
 use ir2::HOutput;
 use r_ast::RExpr;
 use syn::{parse_quote, Expr};
 use utils::ident;
+use visualize::visualize;
 mod code_gen;
 mod hast;
 mod io;
@@ -19,6 +20,7 @@ mod r_ast;
 mod scope_analysis;
 mod transform;
 mod utils;
+mod visualize;
 
 //steps:
 // 1) Encapsulate special-cased rust logic, pulling all dataflow-relevant operations above the barrier
@@ -31,7 +33,7 @@ mod utils;
 // 3) output hydroflow
 
 pub fn main() {
-    //return test();
+    return test();
     let input: Expr = parse_quote! {
         {
             let x = 1 + 1;
@@ -54,7 +56,7 @@ pub fn main() {
 
     println!("fn R() {{{:?}}}\n\n\n", rex);
 
-    let rex_tagged = rex.tag();
+    let rex_tagged = RExpr::<IO>::from(rex);
 
     println!("fn R_tag() {{{:?}}}\n\n\n", rex_tagged);
 
@@ -71,21 +73,39 @@ pub fn main() {
     // // println!("}}");
 }
 
-fn test() {
-    // let hf = HEntryPoint::gen(
-    //     Box::new(HfPlusNode::Placeholder),
-    //     HEntryPoint {
-    //         next: HExprConsumer::Bind(HExprBind {
-    //             definition: ident("hi"),
-    //             scope: Scope::empty(),
-    //             next: HLink::Expr(Box::new(HExprRaw {
-    //                 expr: parse_quote!(hi),
-    //                 scope: Scope(BTreeSet::from([ident("hi")])),
-    //                 next: HExprConsumer::Return(HReturn),
-    //             })),
-    //         }),
-    //     },
-    // );
+macro_rules! compile {
+    (let $input:ident = $hf_input:expr => $($body:tt)*) => {
+        compile!(false, let $input = $hf_input => $($body)*)
+    };
+    (debug let $input:ident = $hf_input:expr => $($body:tt)*) => {
+        compile!(true, let $input = $hf_input => $($body)*)
+    };
+    ($debug:expr, let $input:ident = $hf_input:expr => $($body:tt)*) => {
+        {
+            let expr: ::syn::Expr = parse_quote! {
+                $($body)*
+            };
+            if $debug { println!("fn expr(){{{:?}}}", expr); }
+            let r_expr = RExpr::from(expr);
+            if $debug { println!("fn r_expr(){{{:?}}}", r_expr); }
+            let r_expr_tagged = RExpr::<IO>::from(r_expr);
+            if $debug { println!("fn r_expr_tagged(){{{:?}}}", r_expr_tagged); }
+            let h_expr = HOutput::from(r_expr_tagged);
+            if $debug { println!("fn h_expr(){{{:?}}}", h_expr); }
+            let hf = generate(h_expr, $hf_input);
+            if $debug { println!("fn hf(){{{:?}}}", hf); }
+            hf
+        }
+    };
+}
 
-    // println!("fn test(){{{:?}}}", hf);
+
+fn test() {
+    let hf = compile!(debug let hf_in = HfPlusNode::Placeholder => {
+        let x = hf_in + 1;
+        return x;
+        x + 2 // this doesn't show up in the resulting HF+!
+    });
+
+    println!("fn HFPlus() {{{}\n}}", visualize(hf));
 }

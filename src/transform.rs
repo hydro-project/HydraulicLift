@@ -167,9 +167,9 @@ impl From<RExpr<IO>> for HOutput {
         let rail = expr.hinto(HScope::Input(HInput));
 
         match rail {
-            HRail::Inner(inner) => HOutput::new(HReturn { input: inner }),
+            HRail::Inner(value) => HOutput::new(HReturn { value }),
             HRail::Output(output) => output,
-            HRail::Both(inner, output) => output.union(HOutput::new(HReturn { input: inner })),
+            HRail::Both(value, output) => output.union(HOutput::new(HReturn { value })),
         }
     }
 }
@@ -308,7 +308,7 @@ impl HFrom<RExpr<IO>> for HExpr {
 }
 
 impl HFrom<RExprRaw> for HExprRaw {
-    fn hfrom(RExprRaw(DebugStr(expr)): RExprRaw, input: HScope) -> HRail<Self> {
+    fn hfrom(RExprRaw(expr): RExprRaw, input: HScope) -> HRail<Self> {
         HRail::pure(Self { input, expr })
     }
 }
@@ -326,11 +326,11 @@ impl HFrom<RExprIf<IO>> for HExpr {
             let cond = Rc::<HExpr>::new(cond);
             let then_cond = HScope::Filter(HFilter {
                 cond: Box::new(HExpr::Shared(HExprShared(cond.clone()))),
-                expr: parse_quote!(true),
+                expectation: true,
             });
             let else_cond = HScope::Filter(HFilter {
                 cond: Box::new(HExpr::Shared(HExprShared(cond.clone()))),
-                expr: parse_quote!(false),
+                expectation: false,
             });
             then_expr.hinto(then_cond).union(else_expr.hinto(else_cond))
         })
@@ -355,8 +355,8 @@ impl HFrom<RStmt<IO>> for HScope {
 impl HFrom<RStmtLet<IO>> for HBind {
     fn hfrom(RStmtLet { id, box value }: RStmtLet<IO>, input: HScope) -> HRail<Self> {
         value.hinto(input).map(|value| HBind {
-            input: Box::new(value),
             id,
+            value: Box::new(value)
         })
     }
 }
@@ -365,6 +365,6 @@ impl<T> HFrom<RStmtReturn<IO>> for T {
     fn hfrom(RStmtReturn { box value }: RStmtReturn<IO>, input: HScope) -> HRail<Self> {
         value
             .hinto(input)
-            .and_then(|value| HRail::empty(HOutput::new(HReturn { input: value })))
+            .and_then(|value| HRail::empty(HOutput::new(HReturn { value })))
     }
 }
