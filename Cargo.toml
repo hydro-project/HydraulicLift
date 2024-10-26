@@ -11,3 +11,10 @@ hydroflow_plus = "0.9.0"
 proc-macro2 = "1.0.86"
 quote = "1.0.36"
 syn = { version = "2.0.74", features = ["full", "printing", "extra-traits", "visit-mut", "visit"] }
+
+[dev-dependencies]
+insta = { version = "1.40.0", features = ["yaml"] }
+
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3
