@@ -1,0 +1,20 @@
+---
+source: src/tests.rs
+expression: visualize(hf)
+---
+node0=Placeholder;
+
+node2=node0.tee() 
+.MAP(| () | { let value = 1 == 2 ; (value , ()) });
+
+node1=node0.tee() 
+.MAP(| () | { let value = 1 == 2 ; (value , ()) });
+
+UNION(
+	node1.tee() 
+		.MAP(| (cond , scope) | { if cond != true { return None } Some (scope) }) 
+		.MAP(| () | { let value = 3 ; (value , ()) }),
+	node2.tee() 
+		.MAP(| (cond , scope) | { if cond != false { return None } Some (scope) }) 
+		.MAP(| () | { let value = 4 ; (value , ()) })) 
+.MAP(| (value , _) | { value })

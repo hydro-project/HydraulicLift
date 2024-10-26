@@ -7,7 +7,7 @@ use quote::ToTokens;
 // maybe rename to decompile
 pub fn visualize(node: HfPlusNode) -> String {
     let mut memo = NodeMapping { map: HashMap::new(), i: 0 };
-    let out = to_vis(&node, &mut memo);
+    let out = to_vis(&node, &mut memo, 0);
     let mut out_str = String::new();
     for (name, val) in memo.map.values() {
         out_str.push_str(&format!("\n\n{}={};", name, val));
@@ -30,31 +30,33 @@ impl NodeMapping {
     }
 }
 
-fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping) -> String {
+fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
+    let tabs = "\t".repeat(tab);
     match node {
         HfPlusNode::Placeholder => "Placeholder".to_string(),
         HfPlusNode::Tee { inner } => {
             let addr = (*inner).as_ptr() as usize;
-            if let  None = memo.map.get(&addr) {
-                let x = to_vis(&*inner.borrow_mut(), memo);
+            if let None = memo.map.get(&addr) {
+                let x = to_vis(&*inner.borrow_mut(), memo, 0);
                 memo.insert(addr, x);
             }
-            memo.map.get(&addr).unwrap().0.clone()
+            let name = memo.map.get(&addr).unwrap().0.clone();
+            format!("{name}.tee()")
         },
         HfPlusNode::Union(n1, n2) =>  {
-            let x1 = to_vis(n1, memo);
-            let x2 = to_vis(n2, memo);
-            format!("UNION {{\n{}\n|{}}}", x1, x2)
+            let x1 = to_vis(n1, memo, tab+1);
+            let x2 = to_vis(n2, memo, tab+1);
+            format!("UNION(\n{tabs}\t{},\n{tabs}\t{})", x1, x2)
         },
         HfPlusNode::Map { f, input } => {
-            let x = to_vis(&input, memo);
+            let x = to_vis(&input, memo, tab);
             let f = f.to_token_stream();
-            format!("{} \n\t. MAP({})", x, f)
+            format!("{} \n{tabs}.MAP({})", x, f)
         },
         HfPlusNode::FilterMap { f, input } => {
-            let x = to_vis(&input, memo);
+            let x = to_vis(&input, memo, tab);
             let f = f.to_token_stream();
-            format!("{} \n\t. FILTER_MAP({})", x, f)
+            format!("{} \n{tabs}.FILTER_MAP({})", x, f)
         },
         _ => panic!("Visualizer doesn't support this hf+ node yet.")
     }

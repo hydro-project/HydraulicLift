@@ -1,0 +1,17 @@
+---
+source: src/tests.rs
+expression: visualize(hf)
+---
+node0=Placeholder;
+
+node0 
+	. MAP(| (hf_in) | { let value = 1 ; (value , (hf_in)) }) 
+	. MAP(| (x , (hf_in)) | { (hf_in , x) }) 
+	. MAP(| (hf_in , x) | { let value = hf_in + 2 ; (value , (x)) }) 
+	. MAP(| (y , (x)) | { (x , y) }) 
+	. MAP(| (x , y) | { let value = x + y + 3 ; (value , ()) }) 
+	. MAP(| (z , ()) | { (z) }) 
+	. MAP(| (z) | { let value = z + 4 ; (value , ()) }) 
+	. MAP(| (o , ()) | { (o) }) 
+	. MAP(| (o) | { let value = o + 5 ; (value , ()) }) 
+	. MAP(| (value , _) | { value })
