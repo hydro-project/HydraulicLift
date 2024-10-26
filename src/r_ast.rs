@@ -16,7 +16,7 @@ pub enum RExpr<M = ()> {
     If(RExprIf<M>),
     Block(RExprBlock<M>),
     //TODO: add await
-    Raw(Tagged<RExprRaw, M>), //TODO: expand
+    Raw(Tagged<RExprRaw<M>, M>), //TODO: expand
 }
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,10 @@ pub struct RExprBlock<M = ()> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprRaw(pub DebugStr<Expr>);
+pub struct RExprRaw<M=()> {
+    pub expr: DebugStr<Expr>,
+    pub scope: M
+}
 
 #[derive(Debug, Clone)]
 pub enum RStmt<M = ()> {
@@ -74,9 +77,12 @@ impl<M> RExprBlock<M> {
     }
 }
 
-impl RExprRaw {
-    pub fn new(expr: Expr) -> Self {
-        Self(expr.into())
+impl<M> RExprRaw<M> {
+    pub fn new(expr: Expr, input_scope: M) -> Self {
+        Self {
+            expr: expr.into(),
+            scope: input_scope,
+        }
     }
 }
 

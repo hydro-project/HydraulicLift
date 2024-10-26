@@ -153,7 +153,7 @@ use std::rc::Rc;
 use syn::parse_quote;
 
 use crate::{
-    io::IO,
+    io::{Scope, IO},
     ir2::{
         HBind, HExpr, HExprRaw, HExprShared, HExprUnion, HFilter, HInput, HOutput, HReturn, HScope,
     },
@@ -162,8 +162,8 @@ use crate::{
 };
 
 /// Transforms an RExpr tree into a HOutput node
-impl From<RExpr<IO>> for HOutput {
-    fn from(expr: RExpr<IO>) -> Self {
+impl From<RExpr<Scope>> for HOutput {
+    fn from(expr: RExpr<Scope>) -> Self {
         let rail = expr.hinto(HScope::Input(HInput));
 
         match rail {
@@ -238,17 +238,17 @@ impl<T> HRail<T> {
     }
 }
 
-pub trait Unionable {
+pub trait Semigroup {
     fn union(self, other: Self) -> Self;
 }
 
-impl Unionable for HExpr {
+impl Semigroup for HExpr {
     fn union(self, other: Self) -> Self {
         Self::Union(HExprUnion(Box::new(self), Box::new(other)))
     }
 }
 
-impl Unionable for HOutput {
+impl Semigroup for HOutput {
     fn union(self, Self { input, other }: Self) -> Self {
         let new = self.with(input);
         match other {
@@ -258,9 +258,9 @@ impl Unionable for HOutput {
     }
 }
 
-impl<T> Unionable for Option<T>
+impl<T> Semigroup for Option<T>
 where
-    T: Unionable,
+    T: Semigroup,
 {
     fn union(self, other: Self) -> Self {
         match (self, other) {
@@ -272,9 +272,9 @@ where
     }
 }
 
-impl<T> Unionable for HRail<T>
+impl<T> Semigroup for HRail<T>
 where
-    T: Unionable,
+    T: Semigroup,
 {
     fn union(self, other: Self) -> Self {
         match (self, other) {
@@ -291,14 +291,14 @@ where
     }
 }
 
-impl<T, U: HFrom<T>> HFrom<Tagged<T, IO>> for Tagged<U, IO> {
-    fn hfrom(Tagged(inner, io): Tagged<T, IO>, input: HScope) -> HRail<Self> {
-        inner.hinto(input).map(|inner| Tagged(inner, io))
+impl<T, U: HFrom<T>> HFrom<Tagged<T, Scope>> for Tagged<U, Scope> {
+    fn hfrom(Tagged(inner, scope): Tagged<T, Scope>, input: HScope) -> HRail<Self> {
+        inner.hinto(input).map(|inner| Tagged(inner, scope))
     }
 }
 
-impl HFrom<RExpr<IO>> for HExpr {
-    fn hfrom(value: RExpr<IO>, input: HScope) -> HRail<HExpr> {
+impl HFrom<RExpr<Scope>> for HExpr {
+    fn hfrom(value: RExpr<Scope>, input: HScope) -> HRail<HExpr> {
         match value {
             RExpr::If(s) => s.hinto(input),
             RExpr::Block(s) => s.hinto(input),
@@ -307,19 +307,19 @@ impl HFrom<RExpr<IO>> for HExpr {
     }
 }
 
-impl HFrom<RExprRaw> for HExprRaw {
-    fn hfrom(RExprRaw(expr): RExprRaw, input: HScope) -> HRail<Self> {
-        HRail::pure(Self { input, expr })
+impl HFrom<RExprRaw<Scope>> for HExprRaw {
+    fn hfrom(RExprRaw { expr, scope }: RExprRaw<Scope>, input: HScope) -> HRail<Self> {
+        HRail::pure(Self { input, expr, scope })
     }
 }
 
-impl HFrom<RExprIf<IO>> for HExpr {
+impl HFrom<RExprIf<Scope>> for HExpr {
     fn hfrom(
         RExprIf {
             box cond_expr,
             box then_expr,
             box else_expr,
-        }: RExprIf<IO>,
+        }: RExprIf<Scope>,
         input: HScope,
     ) -> HRail<Self> {
         cond_expr.hinto(input).and_then(|cond| {
@@ -337,14 +337,14 @@ impl HFrom<RExprIf<IO>> for HExpr {
     }
 }
 
-impl HFrom<RExprBlock<IO>> for HExpr {
-    fn hfrom(RExprBlock { stmt, box expr }: RExprBlock<IO>, input: HScope) -> HRail<HExpr> {
+impl HFrom<RExprBlock<Scope>> for HExpr {
+    fn hfrom(RExprBlock { stmt, box expr }: RExprBlock<Scope>, input: HScope) -> HRail<HExpr> {
         stmt.hinto(input).and_then(|stmt| expr.hinto(stmt))
     }
 }
 
-impl HFrom<RStmt<IO>> for HScope {
-    fn hfrom(value: RStmt<IO>, input: HScope) -> HRail<HScope> {
+impl HFrom<RStmt<Scope>> for HScope {
+    fn hfrom(value: RStmt<Scope>, input: HScope) -> HRail<HScope> {
         match value {
             RStmt::Let(s) => s.hinto(input).map(HScope::Bind),
             RStmt::Return(s) => s.hinto(input),
@@ -352,8 +352,8 @@ impl HFrom<RStmt<IO>> for HScope {
     }
 }
 
-impl HFrom<RStmtLet<IO>> for HBind {
-    fn hfrom(RStmtLet { id, box value }: RStmtLet<IO>, input: HScope) -> HRail<Self> {
+impl HFrom<RStmtLet<Scope>> for HBind {
+    fn hfrom(RStmtLet { id, box value }: RStmtLet<Scope>, input: HScope) -> HRail<Self> {
         value.hinto(input).map(|value| HBind {
             id,
             value: Box::new(value)
@@ -361,8 +361,8 @@ impl HFrom<RStmtLet<IO>> for HBind {
     }
 }
 
-impl<T> HFrom<RStmtReturn<IO>> for T {
-    fn hfrom(RStmtReturn { box value }: RStmtReturn<IO>, input: HScope) -> HRail<Self> {
+impl<T> HFrom<RStmtReturn<Scope>> for T {
+    fn hfrom(RStmtReturn { box value }: RStmtReturn<Scope>, input: HScope) -> HRail<Self> {
         value
             .hinto(input)
             .and_then(|value| HRail::empty(HOutput::new(HReturn { value })))

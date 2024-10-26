@@ -12,6 +12,9 @@ use crate::{
 
 /// Lifts syn objects into
 
+
+// TODO: cleanup: use R_::new constructors
+
 impl From<Expr> for RExpr<()> {
     fn from(value: Expr) -> Self {
         match value {
@@ -24,7 +27,7 @@ impl From<Expr> for RExpr<()> {
 
 impl From<Expr> for RExprRaw {
     fn from(value: Expr) -> Self {
-        Self(value.into())
+        Self::new(value, ())
     }
 }
 
@@ -37,16 +40,14 @@ impl From<ExprIf> for RExprIf<()> {
             ..
         }: ExprIf,
     ) -> Self {
-        Self {
-            cond_expr: Box::new(cond.into()),
-            then_expr: Box::new(then_branch.into()),
-            else_expr: Box::new(
-                else_branch
-                    .map(|(_, box expr)| expr)
-                    .unwrap_or(syn_unit())
-                    .into(),
-            ), // else expr or unit
-        }
+        Self::new(
+            cond.into(),
+            then_branch.into(),
+            else_branch
+                .map(|(_, box expr)| expr)
+                .unwrap_or(syn_unit())
+                .into(),
+        )
     }
 }
 
@@ -77,10 +78,7 @@ impl From<Block> for RExpr<()> {
 /// expr; -> let _ = expr;
 impl From<Expr> for RStmtLet<()> {
     fn from(value: Expr) -> Self {
-        Self {
-            id: ident("_"),
-            value: Box::new(value.into()),
-        }
+        Self::new(ident("_"), value.into())
     }
 }
 

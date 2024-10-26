@@ -56,7 +56,7 @@ pub fn main() {
 
     println!("fn R() {{{:?}}}\n\n\n", rex);
 
-    let rex_tagged = RExpr::<IO>::from(rex);
+    let rex_tagged = RExpr::<Scope>::from(rex);
 
     println!("fn R_tag() {{{:?}}}\n\n\n", rex_tagged);
 
@@ -85,10 +85,11 @@ macro_rules! compile {
             let expr: ::syn::Expr = parse_quote! {
                 $($body)*
             };
+            println!("fn input(){{{}}}", quote::quote!(#expr));
             if $debug { println!("fn expr(){{{:?}}}", expr); }
             let r_expr = RExpr::from(expr);
             if $debug { println!("fn r_expr(){{{:?}}}", r_expr); }
-            let r_expr_tagged = RExpr::<IO>::from(r_expr);
+            let r_expr_tagged = RExpr::<Scope>::from(r_expr);
             if $debug { println!("fn r_expr_tagged(){{{:?}}}", r_expr_tagged); }
             let h_expr = HOutput::from(r_expr_tagged);
             if $debug { println!("fn h_expr(){{{:?}}}", h_expr); }
@@ -101,7 +102,7 @@ macro_rules! compile {
 
 
 fn test() {
-    let hf = compile!(debug let hf_in = HfPlusNode::Placeholder => {
+    let hf = compile!(let hf_in = HfPlusNode::Placeholder => {
         let x = hf_in + 1;
         return x;
         x + 2 // this doesn't show up in the resulting HF+!

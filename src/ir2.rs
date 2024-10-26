@@ -376,7 +376,7 @@ impl HNode for HReturn {
 /// :: (value, scope)
 #[derive(Debug, Clone)]
 pub enum HExpr {
-    Raw(Tagged<HExprRaw, IO>),
+    Raw(Tagged<HExprRaw, Scope>),
     // A merge point
     Union(HExprUnion),
     /// A branch point
@@ -405,6 +405,7 @@ impl HNode for HExprShared {
 pub struct HExprRaw {
     pub expr: DebugStr<Expr>,
     pub input: HScope,
+    pub scope: Scope,
 }
 
 impl HNode for HExprRaw {
@@ -415,7 +416,7 @@ impl HNode for HExprRaw {
 #[derive(Debug, Clone)]
 pub enum HScope {
     Input(HInput),
-    Bind(Tagged<HBind, IO>),
+    Bind(Tagged<HBind, Scope>),
     Filter(HFilter),
 }
 

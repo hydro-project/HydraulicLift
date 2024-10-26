@@ -367,12 +367,10 @@ use quote::quote;
 use syn::{parse_quote, Expr};
 
 use crate::{
-    io::IO,
-    ir2::{
+    io::Scope, ir2::{
         ExprPat, HBind, HExpr, HExprRaw, HExprShared, HExprUnion, HFilter, HInput, HNode, HOutput,
         HPattern, HReturn, HScope, ScopePat,
-    },
-    utils::{ident, Tagged, TupleFunctor},
+    }, utils::{ident, Tagged, TupleFunctor}
 };
 
 // /// Constructs a quoted closure which maps from input to output (with optional body)
@@ -742,17 +740,17 @@ impl<'a> HfGen<'a> for HExpr {
     }
 }
 
-impl<'a> HfGen<'a> for Tagged<HExprRaw, IO> {
+impl<'a> HfGen<'a> for Tagged<HExprRaw, Scope> {
     fn gen(
-        Self(HExprRaw { input, expr }, IO { ins, outs }): Self,
+        Self(HExprRaw { input, expr, scope: in_scope }, out_scope): Self,
         memos: HfMemos<'a>,
     ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
         Self::gen_map(
             input,
             memos,
             HFunc::newb(
-                ScopePat::Destructured(ins),
-                ExprPat::Destructured(ident("value"), ScopePat::Destructured(outs)),
+                ScopePat::Destructured(in_scope),
+                ExprPat::Destructured(ident("value"), ScopePat::Destructured(out_scope)),
                 quote! { let value = #expr; },
             ),
         )
@@ -793,9 +791,9 @@ impl<'a> HfGen<'a> for HInput {
     }
 }
 
-impl<'a> HfGen<'a> for Tagged<HBind, IO> {
+impl<'a> HfGen<'a> for Tagged<HBind, Scope> {
     fn gen(
-        Tagged(HBind { id, box value }, IO { ins, outs }): Self,
+        Tagged(HBind { id, box value }, scope): Self,
         memos: HfMemos<'a>,
     ) -> (HfMemos<'a>, Box<HfPlusNode<'a>>) {
         // Todo: update this to support shadowing
@@ -803,8 +801,8 @@ impl<'a> HfGen<'a> for Tagged<HBind, IO> {
             value,
             memos,
             HFunc::new(
-                ExprPat::Destructured(id, ScopePat::Destructured(ins)),
-                ScopePat::Destructured(outs),
+                ExprPat::Destructured(id.clone(), ScopePat::Destructured(scope.without(&id))),
+                ScopePat::Destructured(scope),
             ),
         )
     }

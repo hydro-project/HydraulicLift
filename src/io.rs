@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, rc::Rc};
 use quote::{quote, ToTokens};
 use syn::Ident;
 
-use crate::transform::Unionable;
+use crate::transform::Semigroup;
 
 /// Some collection of identifiers stored in a deterministic order.
 /// Can be tokenized into a pattern.
@@ -28,7 +28,7 @@ impl Scope {
     }
 }
 
-impl Unionable for Scope {
+impl Semigroup for Scope {
     fn union(self, Self(mut inner): Self) -> Self {
         inner.extend(self.0);
         Self(inner)

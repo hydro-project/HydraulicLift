@@ -208,15 +208,21 @@
 // // //     }
 // // // }
 
-// tag<T> :: T<()> -> needed_output -> (T<IO>, needed_input)
+// Tags nodes with their output scopes
 
+// tag<T> :: T<()> -> needed_output -> (T<Scope>, needed_input)
+
+use hydroflow_plus::ir::DebugExpr;
 use syn::visit::Visit;
 
 use crate::{
-    io::{Scope, IO}, r_ast::*, transform::Unionable, utils::{Tagged, TupleFunctor}
+    io::Scope,
+    r_ast::*,
+    transform::Semigroup,
+    utils::{DebugStr, Tagged, TupleFunctor},
 };
 
-impl From<RExpr> for RExpr<IO> {
+impl From<RExpr> for RExpr<Scope> {
     fn from(untagged: RExpr) -> Self {
         Tag::tag(untagged, Scope::empty()).1
     }
@@ -229,9 +235,9 @@ trait Tag {
 }
 
 impl Tag for RExpr {
-    type Out = RExpr<IO>;
+    type Out = RExpr<Scope>;
 
-    fn tag(untagged: Self, output: Scope) -> (Scope, RExpr<IO>) {
+    fn tag(untagged: Self, output: Scope) -> (Scope, RExpr<Scope>) {
         match untagged {
             RExpr::If(s) => Tag::tag(s, output).map(RExpr::If),
             RExpr::Block(s) => Tag::tag(s, output).map(RExpr::Block),
@@ -241,21 +247,29 @@ impl Tag for RExpr {
 }
 
 impl Tag for RExprIf {
-    type Out = RExprIf<IO>;
+    type Out = RExprIf<Scope>;
 
-    fn tag(Self { box cond_expr, box then_expr, box else_expr }: Self, output: Scope) -> (Scope, RExprIf<IO>) {
+    fn tag(
+        Self {
+            box cond_expr,
+            box then_expr,
+            box else_expr,
+        }: Self,
+        output: Scope,
+    ) -> (Scope, RExprIf<Scope>) {
         let (else_input, else_expr) = Tag::tag(else_expr, output.clone());
         let (then_input, then_expr) = Tag::tag(then_expr, output.clone());
         // This probably doesnt work loll then_input and else_input are expecting different things.
         // Maybe they need to be Tagged?
-        Tag::tag(cond_expr, then_input.union(else_input)).map(|cond_expr| RExprIf::new(cond_expr, then_expr, else_expr))
+        Tag::tag(cond_expr, then_input.union(else_input))
+            .map(|cond_expr| RExprIf::new(cond_expr, then_expr, else_expr))
     }
 }
 
 impl Tag for RExprBlock {
-    type Out = RExprBlock<IO>;
+    type Out = RExprBlock<Scope>;
 
-    fn tag(Self { stmt, box expr }: Self, output: Scope) -> (Scope, RExprBlock<IO>) {
+    fn tag(Self { stmt, box expr }: Self, output: Scope) -> (Scope, RExprBlock<Scope>) {
         // TODO: this doesnt include nested scopes!!!
         // let x = 5;
         // {
@@ -270,24 +284,30 @@ impl Tag for RExprBlock {
 }
 
 impl Tag for RExprRaw {
-    type Out = RExprRaw;
+    type Out = RExprRaw<Scope>;
 
-    fn tag(expr: Self, output: Scope) -> (Scope, RExprRaw) {
+    fn tag(
+        Self {
+            expr: DebugStr(expr),
+            scope: (),
+        }: Self,
+        output: Scope,
+    ) -> (Scope, RExprRaw<Scope>) {
         let mut visitor = ScopeVisitor {
             current_scope: output,
         };
-        visitor.visit_expr(&expr.0);
+        visitor.visit_expr(&expr);
         let ScopeVisitor {
             current_scope: input,
         } = visitor;
-        (input, expr)
+        (input.clone(), RExprRaw::new(expr, input))
     }
 }
 
 impl Tag for RStmt {
-    type Out = RStmt<IO>;
+    type Out = RStmt<Scope>;
 
-    fn tag(untagged: Self, output: Scope) -> (Scope, RStmt<IO>) {
+    fn tag(untagged: Self, output: Scope) -> (Scope, RStmt<Scope>) {
         match untagged {
             RStmt::Let(s) => Tag::tag(s, output).map(RStmt::Let),
             RStmt::Return(s) => Tag::tag(s, output).map(RStmt::Return),
@@ -296,17 +316,17 @@ impl Tag for RStmt {
 }
 
 impl Tag for RStmtLet {
-    type Out = RStmtLet<IO>;
+    type Out = RStmtLet<Scope>;
 
-    fn tag(Self { id, box value }: Self, output: Scope) -> (Scope, RStmtLet<IO>) {
+    fn tag(Self { id, box value }: Self, output: Scope) -> (Scope, RStmtLet<Scope>) {
         Tag::tag(value, output.without(&id)).map(|value| RStmtLet::new(id, value))
     }
 }
 
 impl Tag for RStmtReturn {
-    type Out = RStmtReturn<IO>;
+    type Out = RStmtReturn<Scope>;
 
-    fn tag(Self { box value }: Self, _: Scope) -> (Scope, RStmtReturn<IO>) {
+    fn tag(Self { box value }: Self, _: Scope) -> (Scope, RStmtReturn<Scope>) {
         Tag::tag(value, Scope::empty()).map(|value| RStmtReturn::new(value))
     }
 }
@@ -315,20 +335,10 @@ impl<U1, U2> Tag for Tagged<U1>
 where
     U1: Tag<Out = U2>,
 {
-    type Out = Tagged<U2, IO>;
+    type Out = Tagged<U2, Scope>;
 
-    fn tag(Self(inner, ()): Self, output: Scope) -> (Scope, Tagged<U2, IO>) {
-        let (input, inner) = Tag::tag(inner, output.clone());
-        (
-            input.clone(),
-            Tagged(
-                inner,
-                IO {
-                    ins: input,
-                    outs: output,
-                },
-            ),
-        )
+    fn tag(Self(inner, ()): Self, output: Scope) -> (Scope, Tagged<U2, Scope>) {
+        Tag::tag(inner, output.clone()).map(|inner| Tagged(inner, output))
     }
 }
 
