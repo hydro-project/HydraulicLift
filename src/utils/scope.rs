@@ -1,9 +1,9 @@
-use std::{collections::BTreeSet, rc::Rc};
+use std::collections::BTreeSet;
 
 use quote::{quote, ToTokens};
 use syn::Ident;
 
-use crate::transform::Semigroup;
+use super::functional::Semigroup;
 
 /// Some collection of identifiers stored in a deterministic order.
 /// Can be tokenized into a pattern.
@@ -15,21 +15,21 @@ impl Scope {
         Self(BTreeSet::new())
     }
 
-    pub fn with(&self, ident: Ident) -> Self {
-        let mut idents = self.0.clone();
+    pub fn with(self, ident: Ident) -> Self {
+        let Self(mut idents) = self;
         idents.insert(ident);
         Self(idents)
     }
 
-    pub fn without(&self, ident: &Ident) -> Self {
-        let mut idents = self.0.clone();
+    pub fn without(self, ident: &Ident) -> Self {
+        let Self(mut idents) = self;
         idents.remove(ident);
         Self(idents)
     }
 }
 
 impl Semigroup for Scope {
-    fn union(self, Self(mut inner): Self) -> Self {
+    fn concat(self, Self(mut inner): Self) -> Self {
         inner.extend(self.0);
         Self(inner)
     }
@@ -40,11 +40,4 @@ impl ToTokens for Scope {
         let Self(idents) = self;
         tokens.extend(quote! {(#(#idents),*)});
     }
-}
-
-/// Metadata wrapping a raw syn expression or a binding.
-#[derive(Debug, Clone)]
-pub struct IO {
-    pub ins: Scope,
-    pub outs: Scope,
 }

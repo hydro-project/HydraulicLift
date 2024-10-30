@@ -1,7 +1,8 @@
 use hydroflow_plus::ir::HfPlusNode;
 use syn::{Expr, Ident};
 
-use crate::{code_gen::generate, io::Scope, ir2::HOutput, r_ast::RExpr};
+use crate::{r_ir::ir::RExpr, utils::scope::Scope};
+
 
 pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> HfPlusNode {
     if debug {

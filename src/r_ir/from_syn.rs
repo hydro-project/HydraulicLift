@@ -4,12 +4,6 @@ use syn::{
     parse, parse_quote, Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit,
     Pat, PatIdent, PatLit, Stmt,
 };
-
-use crate::{
-    r_ast::*,
-    utils::{ident, DebugStr},
-};
-
 /// Lifts syn objects into
 
 

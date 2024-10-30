@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 use hydroflow_plus::ir::HfPlusNode;
 use quote::ToTokens;

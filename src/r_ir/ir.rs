@@ -1,11 +1,8 @@
 use std::fmt::Debug;
 
-use quote::ToTokens;
-use syn::{Expr, Ident, Stmt};
+use syn::{Expr, Ident};
 
-use crate::utils::{DebugStr, Tagged};
-
-// TODO - Make tagged ast
+use crate::utils::{debug::DebugStr, tagged::Tagged};
 
 /// R AST - Extended syn AST which directly represents the Rust code.
 /// New AST constructs are relevant for HF+ translation.
@@ -26,7 +23,6 @@ pub struct RExprIf<M = ()> {
     pub else_expr: Box<RExpr<M>>,
 }
 
-/// sequence of statements which evaluates to a value
 #[derive(Debug, Clone)]
 pub struct RExprBlock<M = ()> {
     pub stmt: RStmt<M>,
@@ -47,12 +43,11 @@ pub enum RStmt<M = ()> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RStmtLet<M = ()> {
-    pub id: Ident,            // y
-    pub value: Box<RExpr<M>>, // x
+pub struct RStmtLet<M=()> {
+    pub id: Ident,
+    pub value: Box<RExpr<M>>,
 }
 
-// derive debug expression
 #[derive(Debug, Clone)]
 pub struct RStmtReturn<M = ()> {
     pub value: Box<RExpr<M>>,

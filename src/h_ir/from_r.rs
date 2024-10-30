@@ -238,10 +238,6 @@ impl<T> HRail<T> {
     }
 }
 
-pub trait Semigroup {
-    fn union(self, other: Self) -> Self;
-}
-
 impl Semigroup for HExpr {
     fn union(self, other: Self) -> Self {
         Self::Union(HExprUnion(Box::new(self), Box::new(other)))
@@ -254,20 +250,6 @@ impl Semigroup for HOutput {
         match other {
             Some(box rest) => new.union(rest),
             None => new,
-        }
-    }
-}
-
-impl<T> Semigroup for Option<T>
-where
-    T: Semigroup,
-{
-    fn union(self, other: Self) -> Self {
-        match (self, other) {
-            (None, None) => None,
-            (None, Some(t)) => Some(t),
-            (Some(t), None) => Some(t),
-            (Some(t1), Some(t2)) => Some(t1.union(t2)),
         }
     }
 }
