@@ -6,26 +6,28 @@ use quote::ToTokens;
 
 // maybe rename to decompile
 pub fn visualize(node: HfPlusNode) -> String {
-    let mut memo = NodeMapping { map: HashMap::new(), i: 0 };
+    let mut memo = NodeMapping { ids: HashMap::new(), defs: Vec::new(), i: 0 };
     let out = to_vis(&node, &mut memo, 0);
     let mut out_str = String::new();
-    for (name, val) in memo.map.values() {
-        out_str.push_str(&format!("\n\n{}={};", name, val));
+    for (i, def) in memo.defs.iter().enumerate() {
+        out_str.push_str(&format!("\n\nnode{}={};", i, def));
     }
     out_str.push_str(&format!("\n\n{}", out));
     out_str
 }
 
 /// Quick and dirty hack:
-/// Mapping from addrress of HfNode to (node name, node visualization string)
+/// Mapping from address of HfNode to node id, and node id is index to definition string
 struct NodeMapping {
-    map: HashMap<usize, (String, String)>,
+    ids: HashMap<usize, u32>,
+    defs: Vec<String>,
     i: u32
 } 
 
 impl NodeMapping {
     fn insert(&mut self, addr: usize, vis_string: String) {
-        self.map.insert(addr, (format!("node{}", self.i), vis_string));
+        self.ids.insert(addr, self.i);
+        self.defs.push(vis_string);
         self.i += 1;
     }
 }
@@ -36,12 +38,12 @@ fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
         HfPlusNode::Placeholder => "Placeholder".to_string(),
         HfPlusNode::Tee { inner } => {
             let addr = (*inner).as_ptr() as usize;
-            if let None = memo.map.get(&addr) {
+            if let None = memo.ids.get(&addr) {
                 let x = to_vis(&*inner.borrow_mut(), memo, 0);
                 memo.insert(addr, x);
             }
-            let name = memo.map.get(&addr).unwrap().0.clone();
-            format!("{name}.tee()")
+            let id = memo.ids.get(&addr).unwrap().clone();
+            format!("node{id}.tee()")
         },
         HfPlusNode::Union(n1, n2) =>  {
             let x1 = to_vis(n1, memo, tab+1);
