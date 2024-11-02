@@ -1,6 +1,5 @@
 use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
 
-use by_address::ByAddress;
 use hydroflow_plus::ir::HfPlusNode;
 
 use crate::{

@@ -87,13 +87,6 @@ impl HOutput {
     pub fn ret(value: HExpr) -> Self {
         Self::new(HReturn::new(value))
     }
-
-    pub fn with(self, input: HReturn) -> Self {
-        Self {
-            input,
-            other: Some(Box::new(self)),
-        }
-    }
 }
 
 impl Semigroup for HOutput {
@@ -158,11 +151,5 @@ impl HFilter {
             expectation,
             cond: Box::new(cond),
         }
-    }
-}
-
-impl HInput {
-    pub fn new() -> Self {
-        Self {}
     }
 }
