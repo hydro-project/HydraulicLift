@@ -1,7 +1,7 @@
 use hydroflow_plus::ir::HfPlusNode;
 use syn::{Expr, Ident};
 
-use crate::{r_ir::ir::RExpr, utils::scope::Scope};
+use crate::{h_ir::ir::HOutput, hfplus_ir::from_h::generate_hf, r_ir::ir::RExpr, utils::scope::Scope};
 
 
 pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> HfPlusNode {
@@ -20,7 +20,7 @@ pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> H
     if debug {
         println!("fn h_expr(){{{:?}}}", h_expr);
     }
-    let hf = generate(h_expr, hf_input);
+    let hf = generate_hf(h_expr, hf_input);
     if debug {
         println!("fn hf(){{{:?}}}", hf);
     }

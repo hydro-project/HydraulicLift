@@ -1,6 +1,6 @@
 use hydroflow_plus::ir::HfPlusNode;
 
-use crate::{compile, visualize::visualize};
+use crate::{compile, hfplus_ir::visualize::visualize};
 
 macro_rules! test_compile {
     (let $input:ident = $hf_input:expr => $($body:tt)*) => {

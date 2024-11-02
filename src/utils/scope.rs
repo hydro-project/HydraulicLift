@@ -7,7 +7,7 @@ use super::functional::Semigroup;
 
 /// Some collection of identifiers stored in a deterministic order.
 /// Can be tokenized into a pattern.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Scope(pub BTreeSet<Ident>);
 
 impl Scope {

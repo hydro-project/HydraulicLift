@@ -4,8 +4,8 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 
 /// Wraps a type, replaces the debug view with the totoks view
-#[derive(Clone)]
-pub struct DebugStr<T: ToTokens>(pub T);
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct DebugStr<T>(pub T);
 
 impl<T: ToTokens> ToTokens for DebugStr<T> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
@@ -15,17 +15,17 @@ impl<T: ToTokens> ToTokens for DebugStr<T> {
 
 impl<T: ToTokens> Debug for DebugStr<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.to_token_stream())
+        write!(f, "{}", self.to_token_stream())
     }
 }
 
-impl<T: ToTokens> From<T> for DebugStr<T> {
+impl<T> From<T> for DebugStr<T> {
     fn from(inner: T) -> Self {
         Self(inner)
     }
 }
 
-impl<T: ToTokens> Deref for DebugStr<T> {
+impl<T> Deref for DebugStr<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {

@@ -1,308 +1,91 @@
-// // use hydroflow_plus::ir::DebugExpr;
-// // use quote::ToTokens;
-// // use syn::{parse_quote, Expr, Ident};
+use std::rc::Rc;
 
-// // use crate::io::Scope;
+use syn::{Expr, Ident};
 
-// // /// Hydroflow function, input and output of dataflow sub-tree.
-// // trait HF<I, O> {}
+use crate::{derive_hnode, utils::{
+    debug::DebugStr, functional::Semigroup, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::Tagged
+}};
 
-// // /// Generate a closure
-// // trait HfGen<I, O> {
-// //     fn hf(input_pattern: I, body: Expr, output_pattern: O) -> DebugExpr;
-// // }
-
-// // impl<T, I, O> HfGen<I, O> for T
-// // where
-// //     T: HF<I, O>,
-// //     I: ToTokens,
-// //     O: ToTokens,
-// // {
-// //     fn hf(input_pattern: I, body: Expr, output_pattern: O) -> DebugExpr {
-// //         let expr: Expr = parse_quote! {
-// //             |#input_pattern| {
-// //                 #body
-// //                 #output_pattern
-// //             }
-// //         };
-// //         expr.into()
-// //     }
-// // }
-
-// // /// Input to the whole tree
-// // /// :: (value, scope=[])
-// // struct HInput;
-
-// // /// Highest layer output, return value.
-// // /// :: (value, scope) -> value
-// // struct HReturn {
-// //     input: HExpr
-// // }
-
-// // /// :: scope -> (value, scope)
-// // struct HExpr {
-// //     input: HScope,
-// //     expr: Expr,
-// //     scope: Scope
-// // }
-
-// // // :: (value, scope) -> scope
-// // struct HBind {
-// //     scope: Scope,
-// //     definition: Ident,
-// //     input: Box<HExpr>
-// // }
-
-// // // :: scope -> scope
-// // struct HBlockEnd {
-// //     scope: Scope,
-// //     input: Box<HScope>
-// // }
-
-// // // :: _ -> scope
-// // enum HScope {
-// //     Bind(HBind),
-// //     BlockEnd(HBlockEnd)
-// // }
-
-// // // :: _ -> value | (value, scope)
-// // enum HExprReturn {
-// //     Block(HBlock),
-// //     Return(HReturn)
-// // }
-
-// // /// :: scope -> value | (value, scope)
-// // enum HBlock {
-// //     input: HScope
-// // }
-
-// // /*
-// // {
-// //     let x = input;
-// //     x + 1
-// // }
-
-// //     HReturn(HExpr(Bind(x, HInput)))
-
-// // {
-// //     return input;
-// //     x + 1
-// // }
-
-// //     HReturn(HInput)
-
-// // {
-// //     let x = input;
-// //     if x > 1 {
-// //         return x;
-// //     }
-// //     x + 1
-// // }
-// //     Bind(x, HInput)
-
-// // */
-// // NEW
-// // scopes contain their inputs
-
-// // NEW
-// // nodes are just processing, they are externally linked
-
-// use quote::ToTokens;
-// use syn::{parse_quote, Expr, Ident};
-
-// use crate::{io::Scope, utils::ident};
-
-// // matches: scope | (a, b, c)
-// pub enum ScopePat {
-//     Ident(Ident),
-//     Destructured(Scope)
-// }
-// // matches: expr | (value, scope) | (a, (b, c, d))
-// pub enum ExprPat{
-//     Ident(Ident),
-//     Destructured(Ident, ScopePat)
-// }
-
-// pub trait HPattern {
-
-// }
-
-// impl HPattern for ScopePat {
-
-// }
-
-// impl HPattern for Ident {
-
-// }
-
-// impl HPattern for ExprPat {
-
-// }
-
-// pub trait HNode {
-//     type I: HPattern;
-//     type O: HPattern;
-// }
-
-// pub struct HExpr {
-//     pub expr: Expr,
-//     pub scope: Scope,
-// }
-
-// impl HNode for HExpr {
-//     type I = ScopePat;
-//     type O = ExprPat;
-// }
-
-// pub struct HBlock<O> {
-//     pub stmt: Box<dyn HNode<I = ScopePat, O = ScopePat>>,
-//     pub eval: Box<dyn HNode<I = ScopePat, O = O>>,
-// }
-
-// impl<O: HPattern> HNode for HBlock<O> {
-//     type I = ScopePat;
-//     type O = O;
-// }
-
-// pub struct HBind {
-//     pub definition: Ident,
-//     pub expr: Box<dyn HNode<I = ScopePat, O = ExprPat>>,
-// }
-
-// impl HNode for HBind {
-//     type I = ScopePat;
-//     type O = ScopePat;
-// }
-
-// pub struct HBranch<OT: HPattern, OF: HPattern> {
-//     pub cond: Box<dyn HNode<I = ScopePat, O = ExprPat>>,
-//     pub branch_t: Box<dyn HNode<I = ScopePat, O = OT>>,
-//     pub branch_f: Box<dyn HNode<I = ScopePat, O = OF>>,
-// }
-
-// impl<O: HPattern> HNode for HBranch<O, O> {
-//     type I = ScopePat;
-//     type O = O;
-// }
-
-// fn test() {
-//     let out = {
-//         let x = 1;
-//         {
-//             let y = 2;
-//             x + y
-//         }
-//     };
-//     // input is a scope (will be wrapped around input value)
-
-//     let whole = HBlock {
-//         stmt: Box::new(HBind {
-//             definition: ident("x"),
-//             expr: Box::new(HExpr {
-//                 expr: parse_quote!(1),
-//                 scope: Scope::empty(),
-//             }),
-//         }),
-//         eval: Box::new(HBlock {
-//             stmt: Box::new(HBind {
-//                 definition: ident("y"),
-//                 expr: Box::new(HExpr {
-//                     expr: parse_quote!(2),
-//                     scope: Scope::empty().with(ident("x")),
-//                 }),
-//             }),
-//             eval: Box::new(HExpr {
-//                 expr: parse_quote!(x + y),
-//                 scope: Scope::empty().with(ident("x")).with(ident("y")),
-//             }),
-//         }),
-//     };
-
-//     let output = {
-//         let x = 1;
-//         if x > 2 {
-//             let y = 2;
-//             x + y
-//         } else {
-//             let z = 3;
-//             x + z
-//         }
-//     };
-
-//     let whole = HBlock {
-//         stmt: Box::new(HBind {
-//             definition: ident("x"),
-//             expr: Box::new(HExpr {
-//                 expr: parse_quote!(1),
-//                 scope: Scope::empty(),
-//             }),
-//         }),
-//         eval: Box::new(HBranch {
-//             cond: Box::new(HExpr {
-//                 expr: parse_quote!(x > 2),
-//                 scope: Scope::empty().with(ident("x")),
-//             }),
-//             branch_t: Box::new(HBlock {
-//                 stmt: Box::new(HBind {
-//                     definition: ident("y"),
-//                     expr: Box::new(HExpr {
-//                         expr: parse_quote!(2),
-//                         scope: Scope::empty().with(ident("x")),
-//                     }),
-//                 }),
-//                 eval: Box::new(HExpr {
-//                     expr: parse_quote!(x+y),
-//                     scope: Scope::empty().with(ident("x")).with(ident("y")),
-//                 }),
-//             }),
-//             branch_f: Box::new(HBlock {
-//                 stmt: Box::new(HBind {
-//                     definition: ident("z"),
-//                     expr: Box::new(HExpr {
-//                         expr: parse_quote!(3),
-//                         scope: Scope::empty().with(ident("x")),
-//                     }),
-//                 }),
-//                 eval: Box::new(HExpr {
-//                     expr: parse_quote!(x+z),
-//                     scope: Scope::empty().with(ident("x")).with(ident("z")),
-//                 }),
-//             }),
-//         }),
-//     };
-// }
-
-// NEW
-// input of a tree is always a scope!
-// nodes contain their inputs
-// nodes are simply pipelines
-// branches contain branch & merge
-
-use std::{ops::Add, rc::Rc};
-
-use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_quote, Expr, Ident};
-
-use crate::{
-    io::{Scope, IO},
-    utils::{ident, DebugStr, Tagged},
-};
 
 // :: value
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HOutput {
     pub input: HReturn,
     pub other: Option<Box<HOutput>>,
 }
+derive_hnode!(HOutput: Ident);
 
-impl HNode for HOutput {
-    type O = Ident;
+/// :: value
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HReturn {
+    pub value: HExpr,
 }
+derive_hnode!(HReturn: Ident);
+
+/// :: (value, scope)
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum HExpr {
+    Raw(Tagged<HExprRaw, Scope>),
+    // A merge point
+    Union(HExprUnion),
+    /// A branch point
+    Shared(HExprShared),
+}
+derive_hnode!(HExpr: ExprPat);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HExprRaw {
+    pub expr: DebugStr<Expr>,
+    pub input: HScope,
+    pub scope: Scope,
+}
+derive_hnode!(HExprRaw: ExprPat);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HExprUnion(pub Box<HExpr>, pub Box<HExpr>);
+derive_hnode!(HExprUnion: ExprPat);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HExprShared(pub Rc<HExpr>);
+derive_hnode!(HExprShared: ExprPat);
+
+/// :: scope
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum HScope {
+    Bind(Tagged<HBind, Scope>),
+    Filter(HFilter),
+    Input(HInput),
+}
+derive_hnode!(HScope: ScopePat);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HBind {
+    pub id: Ident,
+    pub value: Box<HExpr>,
+}
+derive_hnode!(HBind: ScopePat);
+
+/// Filters for cond == expectation
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HFilter {
+    pub expectation: bool,
+    pub cond: Box<HExpr>,
+}
+derive_hnode!(HFilter: ScopePat);
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HInput;
+derive_hnode!(HInput: ScopePat);
 
 impl HOutput {
+    /// Creates a new output from the return value
     pub fn new(input: HReturn) -> Self {
         Self { input, other: None }
+    }
+
+    /// Creates a new output returning value
+    pub fn ret(value: HExpr) -> Self {
+        Self::new(HReturn::new(value))
     }
 
     pub fn with(self, input: HReturn) -> Self {
@@ -313,181 +96,73 @@ impl HOutput {
     }
 }
 
-pub trait HPattern: ToTokens {}
-
-/// Specifies the pattern which can match the output of the node.
-pub trait HNode {
-    type O: HPattern;
-}
-
-/// matches: scope | (a, b, c)
-pub enum ScopePat {
-    Ident(Ident),
-    Destructured(Scope),
-}
-/// matches: expr | (value, scope) | (a, (b, c, d))
-pub enum ExprPat {
-    Ident(Ident),
-    Destructured(Ident, ScopePat),
-}
-
-impl ToTokens for ScopePat {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            ScopePat::Ident(ident) => ident.to_tokens(tokens),
-            ScopePat::Destructured(scope) => scope.to_tokens(tokens),
+impl Semigroup for HOutput {
+    fn concat(self, Self { input, other }: Self) -> Self {
+        let move_one = Self {
+            input,
+            other: Some(Box::new(self)),
         };
-    }
-}
-
-impl ToTokens for ExprPat {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            ExprPat::Ident(ident) => ident.to_tokens(tokens),
-            ExprPat::Destructured(ident, scope_pat) => tokens.extend(quote! {(#ident, #scope_pat)}),
+        match other {
+            Some(box rest) => move_one.concat(rest),
+            None => move_one,
         }
     }
 }
 
-impl HPattern for ScopePat {}
-
-impl HPattern for Ident {}
-
-impl HPattern for ExprPat {}
-
-impl<T, O, M> HNode for Tagged<T, M>
-where
-    O: HPattern,
-    T: HNode<O = O>,
-{
-    type O = O;
+impl HReturn {
+    pub fn new(value: HExpr) -> Self {
+        Self { value }
+    }
 }
 
-/// :: value
-#[derive(Debug, Clone)]
-pub struct HReturn {
-    pub value: HExpr,
+impl Semigroup for HExpr {
+    fn concat(self, other: Self) -> Self {
+        Self::Union(HExprUnion::new(self, other))
+    }
 }
 
-impl HNode for HReturn {
-    type O = Ident;
+impl HExprRaw {
+    pub fn new(expr: Expr, input: HScope, scope: Scope) -> Self {
+        Self {
+            expr: expr.into(),
+            input,
+            scope,
+        }
+    }
 }
 
-/// :: (value, scope)
-#[derive(Debug, Clone)]
-pub enum HExpr {
-    Raw(Tagged<HExprRaw, Scope>),
-    // A merge point
-    Union(HExprUnion),
-    /// A branch point
-    Shared(HExprShared),
+impl HExprUnion {
+    pub fn new(e1: HExpr, e2: HExpr) -> Self {
+        Self(Box::new(e1), Box::new(e2))
+    }
 }
 
-impl HNode for HExpr {
-    type O = ExprPat;
+impl HExprShared {
+    pub fn new(inner: Rc<HExpr>) -> Self {
+        Self(inner)
+    }
 }
 
-#[derive(Debug, Clone)]
-pub struct HExprUnion(pub Box<HExpr>, pub Box<HExpr>);
-
-impl HNode for HExprUnion {
-    type O = ExprPat;
+impl HBind {
+    pub fn new(id: Ident, value: HExpr) -> Self {
+        Self {
+            id,
+            value: Box::new(value),
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
-pub struct HExprShared(pub Rc<HExpr>);
-
-impl HNode for HExprShared {
-    type O = ExprPat;
+impl HFilter {
+    pub fn new(expectation: bool, cond: HExpr) -> Self {
+        Self {
+            expectation,
+            cond: Box::new(cond),
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
-pub struct HExprRaw {
-    pub expr: DebugStr<Expr>,
-    pub input: HScope,
-    pub scope: Scope,
+impl HInput {
+    pub fn new() -> Self {
+        Self {}
+    }
 }
-
-impl HNode for HExprRaw {
-    type O = ExprPat;
-}
-
-/// :: scope
-#[derive(Debug, Clone)]
-pub enum HScope {
-    Input(HInput),
-    Bind(Tagged<HBind, Scope>),
-    Filter(HFilter),
-}
-
-impl HNode for HScope {
-    type O = ScopePat;
-}
-
-#[derive(Debug, Clone)]
-pub struct HBind {
-    pub id: Ident,
-    pub value: Box<HExpr>,
-}
-
-impl HNode for HBind {
-    type O = ScopePat;
-}
-
-/// Filters for cond == expectation
-#[derive(Debug, Clone)]
-pub struct HFilter {
-    pub expectation: bool,
-    pub cond: Box<HExpr>,
-}
-
-impl HNode for HFilter {
-    type O = ScopePat;
-}
-
-#[derive(Debug, Clone)]
-pub struct HInput;
-
-impl HNode for HInput {
-    type O = ScopePat;
-}
-
-// fn test() {
-//     let input = 1;
-//     let out = {
-//         let x = input;
-//         {
-//             let y = 2;
-//             x + y
-//         }
-//     };
-
-//     let whole = HExpr::Raw(HExprRaw {
-//         input: HScope::Bind(HBind {
-//             input: Box::new(HExpr::Raw(HExprRaw {
-//                 input: HScope::Bind(HBind {
-//                     input: Box::new(HExpr::Raw(HExprRaw {
-//                         input: HScope::Input(HInput),
-//                         expr: parse_quote!(input),
-//                     })),
-//                     id: ident("x"),
-//                 }),
-//                 expr: parse_quote!(2),
-//             })),
-//             id: ident("y"),
-//         }),
-//         expr: parse_quote!(x + y),
-//     });
-
-//     let out = {
-//         let x = 1;
-//         if x < 2 {
-//             let y = 3;
-//             x + y
-//         } else {
-//             let z = 4;
-//             x + z
-//         }
-//     };
-
-// }

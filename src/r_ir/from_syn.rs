@@ -1,15 +1,15 @@
-use std::ops::Deref;
-
 use syn::{
-    parse, parse_quote, Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit,
-    Pat, PatIdent, PatLit, Stmt,
+    parse_quote, Block, Expr, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Pat, PatIdent, Stmt,
 };
-/// Lifts syn objects into
 
+use crate::utils::idents::ident;
+
+use super::ir::*;
+/// Lifts syn objects into
 
 // TODO: cleanup: use R_::new constructors
 
-impl From<Expr> for RExpr<()> {
+impl From<Expr> for RExpr {
     fn from(value: Expr) -> Self {
         match value {
             Expr::Block(ExprBlock { block: s, .. }) => s.into(),
@@ -25,7 +25,7 @@ impl From<Expr> for RExprRaw {
     }
 }
 
-impl From<ExprIf> for RExprIf<()> {
+impl From<ExprIf> for RExprIf {
     fn from(
         ExprIf {
             box cond,
@@ -45,55 +45,40 @@ impl From<ExprIf> for RExprIf<()> {
     }
 }
 
-impl From<Block> for RExpr<()> {
+impl From<Block> for RExpr {
     fn from(block: Block) -> Self {
         let mut stmts = block.stmts;
 
         // Popped last statement if it is an expression, otherwise just ()
-        let mut return_expr: RExpr<()> = match stmts.pop() {
-            Some(Stmt::Expr(expr, None)) => expr.into(),
+        let mut return_expr = match stmts.pop() {
+            Some(Stmt::Expr(expr, None)) => expr.into(), //ending expression
             Some(stmt) => {
+                // ending expression is unit if we end on a statement
                 stmts.push(stmt);
                 syn_unit().into()
             }
-            None => syn_unit().into(),
+            None => syn_unit().into(), // ending expression is unit if block is empty
         };
 
         for stmt in stmts.into_iter().rev() {
-            return_expr = Self::Block(RExprBlock {
-                stmt: stmt.into(),
-                expr: Box::new(return_expr),
-            })
+            return_expr = Self::Block(RExprBlock::new(stmt.into(), return_expr));
         }
         return_expr
     }
 }
 
-/// expr; -> let _ = expr;
-impl From<Expr> for RStmtLet<()> {
-    fn from(value: Expr) -> Self {
-        Self::new(ident("_"), value.into())
-    }
-}
-
-impl From<Stmt> for RStmt<()> {
+impl From<Stmt> for RStmt {
     fn from(stmt: Stmt) -> Self {
         match stmt {
             Stmt::Local(Local {
                 pat: Pat::Ident(PatIdent { ident, .. }),
                 init: Some(LocalInit { box expr, .. }),
                 ..
-            }) => Self::Let(
-                RStmtLet {
-                    id: ident,
-                    value: Box::new(expr.into()),
-                }
-                .into(),
-            ),
-            Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RStmtReturn {
-                value: Box::new(expr.map(|box e| e).unwrap_or(syn_unit()).into()),
-            }),
-            Stmt::Expr(expr, _) => Self::Let(RStmtLet::from(expr).into()),
+            }) => Self::Let(RStmtLet::new(ident, expr.into()).into()),
+            Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RStmtReturn::new(
+                expr.map(|box e| e).unwrap_or(syn_unit()).into(),
+            )),
+            Stmt::Expr(expr, _) => Self::Let(RStmtLet::new(ident("_"), expr.into()).into()), // expr; -> let _ = expr;
             _ => panic!(
                 "Unable to parse {:?}. This is probably not supported by Rust to Hydro yet.",
                 stmt

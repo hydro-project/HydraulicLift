@@ -19,8 +19,10 @@ mod r_ir;
 mod h_ir;
 mod hfplus_ir;
 mod compile;
-mod tests;
 mod utils;
+
+#[cfg(test)]
+mod tests;
 
 pub fn main() {
     let hf = compile!(let hf_in = HfPlusNode::Placeholder => {

@@ -3,6 +3,10 @@ pub trait Semigroup {
     fn concat(self, other: Self) -> Self;
 }
 
+pub trait Monoid: Semigroup {
+    fn empty() -> Self;
+}
+
 impl<T> Semigroup for Option<T>
 where
     T: Semigroup,

@@ -30,9 +30,9 @@ pub struct RExprBlock<M = ()> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprRaw<M=()> {
+pub struct RExprRaw<M = ()> {
     pub expr: DebugStr<Expr>,
-    pub scope: M
+    pub scope: M,
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +43,7 @@ pub enum RStmt<M = ()> {
 }
 
 #[derive(Debug, Clone)]
-pub struct RStmtLet<M=()> {
+pub struct RStmtLet<M = ()> {
     pub id: Ident,
     pub value: Box<RExpr<M>>,
 }

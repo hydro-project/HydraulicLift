@@ -1,352 +1,126 @@
-// // use syn::Expr;
-
-// // use crate::{io::IO, ir2::{ExprPat, HBlock, HExpr, HNode, HPattern, ScopePat}, r_ast::{RExpr, RExprBlock, RExprIf}, utils::{DebugStr, Tagged}};
-
-// // impl From<RExpr<IO>> for Box<dyn HNode<I=ScopePat, O=dyn HPattern>> {
-// //     fn from(value: RExpr<IO>) -> Self {
-// //         match value {
-// //             RExpr::If(s) => Box::new(HExpr::from(s)),
-// //             RExpr::Block(s) => Box::new(HBlock::from(s)),
-// //             RExpr::Raw(s) => Box::new(HExpr::from(s)),
-// //         }
-// //     }
-// // }
-
-// // impl From<Tagged<DebugStr<Expr>, IO>> for HExpr {
-// //     fn from(Tagged(DebugStr(expr), IO { input_scope: scope, output_scope }): Tagged<DebugStr<Expr>, IO>) -> Self {
-// //         Self { expr, scope }
-// //     }
-// // }
-
-// // impl From<RExprIf<IO>> for HExpr {
-// //     fn from(value: RExprIf<IO>) -> Self {
-// //         todo!()
-// //     }
-// // }
-
-// // impl<O: HPattern> From<RExprBlock<IO>> for HBlock<O> {
-// //     fn from(RExprBlock { stmt, box return_expr }: RExprBlock<IO>) -> Self {
-// //         let stmt = stmt.into();
-// //         let eval = return_expr.into();
-// //         Self { stmt, eval }
-// //     }
-// // }
-
-// use std::ops::{ControlFlow, FromResidual, Try};
-
-// use syn::Expr;
-
-// use crate::{
-//     io::IO,
-//     ir2::{HBind, HExpr, HExprRaw, HReturn, HScope, HRail},
-//     r_ast::{RExpr, RExprBlock, RExprIf, RStmt, RStmtLet, RStmtReturn},
-//     utils::{DebugStr, Tagged},
-// };
-
-// // pub trait From2<T, I> {
-// //     fn from2(value: T, input: I) -> Self;
-// // }
-
-// /// Represents a H node which can evaluate to self or return
-// pub trait HFrom<T>: Sized {
-//     fn hfrom(value: T, input: HScope) -> HRail<Self>;
-// }
-
-// pub trait HInto<O: HFrom<Self>>: Sized {
-//     fn hinto(self, input: HScope) -> HRail<O>;
-// }
-
-// impl<T, O: HFrom<T>> HInto<O> for T {
-//     fn hinto(self, input: HScope) -> HRail<O> {
-//         O::hfrom(self, input)
-//     }
-// }
-
-// impl<T> FromResidual<HReturn> for HRail<T> {
-//     fn from_residual(residual: HReturn) -> Self {
-//         HRail::Return(residual)
-//     }
-// }
-
-// impl<T> Try for HRail<T> {
-//     type Output = T;
-//     type Residual = HReturn;
-
-//     fn from_output(output: Self::Output) -> Self {
-//         HRail::Inner(output)
-//     }
-
-//     fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
-//         match self {
-//             HRail::Inner(inner) => ControlFlow::Continue(inner),
-//             HRail::Return(hreturn) => ControlFlow::Break(hreturn),
-//         }
-//     }
-// }
-
-// impl HFrom<RExpr<IO>> for HExpr {
-//     fn hfrom(value: RExpr<IO>, input: HScope) -> HRail<HExpr> {
-//         match value {
-//             RExpr::If(s) => s.hinto(input),
-//             RExpr::Block(s) => s.hinto(input),
-//             RExpr::Raw(Tagged(
-//                 DebugStr(expr),
-//                 IO {
-//                     input_scope,
-//                     output_scope,
-//                 },
-//             )) => HRail::Inner(HExpr::Raw(HExprRaw { input, expr })),
-//         }
-//     }
-// }
-
-// impl HFrom<RExprIf<IO>> for HExpr {
-//     fn hfrom(RExprIf { box cond_expr, box then_expr, box else_expr }: RExprIf<IO>, input: HScope) -> HRail<Self> {
-//         HRail::Inner(HEx)
-//     }
-// }
-
-// impl HFrom<RExprBlock<IO>> for HExpr {
-//     fn hfrom(RExprBlock { stmt, box expr }: RExprBlock<IO>, input: HScope) -> HRail<HExpr> {
-//         let stmt = stmt.hinto(input)?;
-//         expr.hinto(stmt)
-//     }
-// }
-
-// impl HFrom<RStmt<IO>> for HScope {
-//     fn hfrom(value: RStmt<IO>, input: HScope) -> HRail<HScope> {
-//         match value {
-//             RStmt::Let(s) => s.hinto(input),
-//             RStmt::Return(s) => s.hinto(input),
-//         }
-//     }
-// }
-
-// impl HFrom<Tagged<RStmtLet<IO>, IO>> for HScope {
-//     fn hfrom(
-//         Tagged(
-//             RStmtLet { ident, box value },
-//             IO {
-//                 input_scope,
-//                 output_scope,
-//             },
-//         ): Tagged<RStmtLet<IO>, IO>,
-//         input: HScope,
-//     ) -> HRail<Self> {
-//         let value = value.hinto(input)?;
-//         HRail::Inner(Self::Bind(HBind {
-//             input: Box::new(value),
-//             id: ident,
-//         }))
-//     }
-// }
-
-// impl<T> HFrom<RStmtReturn<IO>> for T {
-//     fn hfrom(RStmtReturn { box value }: RStmtReturn<IO>, input: HScope) -> HRail<Self> {
-//         let value = value.hinto(input)?;
-//         HRail::Return(HReturn { input: value })
-//     }
-// }
-
 use std::rc::Rc;
 
-use syn::parse_quote;
-
 use crate::{
-    io::{Scope, IO},
-    ir2::{
-        HBind, HExpr, HExprRaw, HExprShared, HExprUnion, HFilter, HInput, HOutput, HReturn, HScope,
-    },
-    r_ast::{RExpr, RExprBlock, RExprIf, RExprRaw, RStmt, RStmtLet, RStmtReturn},
-    utils::{DebugStr, Tagged},
+    r_ir::ir::*,
+    utils::{debug::DebugStr, functional::Semigroup, scope::Scope, tagged::Tagged},
 };
+
+use super::{ir::*, rail::HRail};
 
 /// Transforms an RExpr tree into a HOutput node
 impl From<RExpr<Scope>> for HOutput {
     fn from(expr: RExpr<Scope>) -> Self {
-        let rail = expr.hinto(HScope::Input(HInput));
+        // The overall tree will have the special cased "HInput" scope.
+        // This will be replaced by the hydroflow+ input node in the next stage.
+        let rail = expr.h_into(HScope::Input(HInput));
 
+        // If expr evaluated to an expression, it should be returned
         match rail {
-            HRail::Inner(value) => HOutput::new(HReturn { value }),
+            HRail::Inner(value) => HOutput::ret(value),
             HRail::Output(output) => output,
-            HRail::Both(value, output) => output.union(HOutput::new(HReturn { value })),
+            HRail::Both(value, output) => output.concat(HOutput::ret(value)),
         }
     }
 }
 
-/// Represents a H node which can evaluate to self or return
+/// Represents a transformation from T to an
+/// H node which can evaluate to self or return.
 trait HFrom<T>: Sized {
-    fn hfrom(value: T, input: HScope) -> HRail<Self>;
+    /// `value` is the r node to process.
+    /// `h_input` is the input scope to the entire node tree represented by `value`.
+    /// Returns a rail containing nodes which evaluate `value`,
+    /// in addition to nodes which evaluate early return values of `value`,
+    fn h_from(value: T, h_input: HScope) -> HRail<Self>;
 }
 
 trait HInto<O: HFrom<Self>>: Sized {
-    fn hinto(self, input: HScope) -> HRail<O>;
+    fn h_into(self, h_input: HScope) -> HRail<O>;
 }
 
 impl<T, O: HFrom<T>> HInto<O> for T {
-    fn hinto(self, input: HScope) -> HRail<O> {
-        O::hfrom(self, input)
-    }
-}
-
-/// Tracks current node alongside early returns
-enum HRail<T> {
-    Inner(T),
-    Output(HOutput),
-    Both(T, HOutput),
-}
-
-impl<T> HRail<T> {
-    fn empty(output: HOutput) -> Self {
-        Self::Output(output)
-    }
-
-    fn union_output(self, other: HOutput) -> Self {
-        match self {
-            HRail::Inner(inner) => HRail::Both(inner, other),
-            HRail::Output(output) => HRail::Output(output.union(other)),
-            HRail::Both(inner, output) => HRail::Both(inner, output.union(other)),
-        }
-    }
-}
-
-/// Monad
-impl<T> HRail<T> {
-    /// Monad pure
-    pub fn pure(inner: T) -> Self {
-        Self::Inner(inner)
-    }
-
-    /// Monad bind
-    pub fn and_then<U, F>(self, f: F) -> HRail<U>
-    where
-        F: FnOnce(T) -> HRail<U>,
-    {
-        match self {
-            HRail::Inner(inner) => f(inner),
-            HRail::Output(output) => HRail::Output(output),
-            HRail::Both(inner, output) => f(inner).union_output(output),
-        }
-    }
-
-    /// Functor map
-    pub fn map<F, U>(self, f: F) -> HRail<U>
-    where
-        F: FnOnce(T) -> U,
-    {
-        self.and_then(|inner| HRail::pure(f(inner)))
-    }
-}
-
-impl Semigroup for HExpr {
-    fn union(self, other: Self) -> Self {
-        Self::Union(HExprUnion(Box::new(self), Box::new(other)))
-    }
-}
-
-impl Semigroup for HOutput {
-    fn union(self, Self { input, other }: Self) -> Self {
-        let new = self.with(input);
-        match other {
-            Some(box rest) => new.union(rest),
-            None => new,
-        }
-    }
-}
-
-impl<T> Semigroup for HRail<T>
-where
-    T: Semigroup,
-{
-    fn union(self, other: Self) -> Self {
-        match (self, other) {
-            (HRail::Inner(i1), HRail::Inner(i2)) => Self::Inner(i1.union(i2)),
-            (HRail::Inner(i), HRail::Output(o)) => Self::Both(i, o),
-            (HRail::Inner(i1), HRail::Both(i2, o)) => Self::Both(i1.union(i2), o),
-            (HRail::Output(o), HRail::Inner(i)) => Self::Both(i, o),
-            (HRail::Output(o1), HRail::Output(o2)) => Self::Output(o1.union(o2)),
-            (HRail::Output(o1), HRail::Both(i, o2)) => Self::Both(i, o1.union(o2)),
-            (HRail::Both(i1, o), HRail::Inner(i2)) => Self::Both(i1.union(i2), o),
-            (HRail::Both(i, o1), HRail::Output(o2)) => Self::Both(i, o1.union(o2)),
-            (HRail::Both(i1, o1), HRail::Both(i2, o2)) => Self::Both(i1.union(i2), o1.union(o2)),
-        }
+    fn h_into(self, h_input: HScope) -> HRail<O> {
+        O::h_from(self, h_input)
     }
 }
 
 impl<T, U: HFrom<T>> HFrom<Tagged<T, Scope>> for Tagged<U, Scope> {
-    fn hfrom(Tagged(inner, scope): Tagged<T, Scope>, input: HScope) -> HRail<Self> {
-        inner.hinto(input).map(|inner| Tagged(inner, scope))
+    fn h_from(Tagged(inner, scope): Tagged<T, Scope>, h_input: HScope) -> HRail<Self> {
+        inner.h_into(h_input).map(|h_inner| Tagged(h_inner, scope))
     }
 }
 
 impl HFrom<RExpr<Scope>> for HExpr {
-    fn hfrom(value: RExpr<Scope>, input: HScope) -> HRail<HExpr> {
+    fn h_from(value: RExpr<Scope>, h_input: HScope) -> HRail<HExpr> {
         match value {
-            RExpr::If(s) => s.hinto(input),
-            RExpr::Block(s) => s.hinto(input),
-            RExpr::Raw(s) => s.hinto(input).map(HExpr::Raw),
+            RExpr::If(s) => s.h_into(h_input),
+            RExpr::Block(s) => s.h_into(h_input),
+            RExpr::Raw(s) => s.h_into(h_input).map(Self::Raw),
         }
     }
 }
 
 impl HFrom<RExprRaw<Scope>> for HExprRaw {
-    fn hfrom(RExprRaw { expr, scope }: RExprRaw<Scope>, input: HScope) -> HRail<Self> {
-        HRail::pure(Self { input, expr, scope })
+    fn h_from(
+        RExprRaw {
+            expr: DebugStr(expr),
+            scope,
+        }: RExprRaw<Scope>,
+        h_input: HScope,
+    ) -> HRail<Self> {
+        HRail::pure(HExprRaw::new(expr, h_input, scope))
     }
 }
 
 impl HFrom<RExprIf<Scope>> for HExpr {
-    fn hfrom(
+    fn h_from(
         RExprIf {
             box cond_expr,
             box then_expr,
             box else_expr,
         }: RExprIf<Scope>,
-        input: HScope,
+        h_input: HScope,
     ) -> HRail<Self> {
-        cond_expr.hinto(input).and_then(|cond| {
-            let cond = Rc::<HExpr>::new(cond);
-            let then_cond = HScope::Filter(HFilter {
-                cond: Box::new(HExpr::Shared(HExprShared(cond.clone()))),
-                expectation: true,
-            });
-            let else_cond = HScope::Filter(HFilter {
-                cond: Box::new(HExpr::Shared(HExprShared(cond.clone()))),
-                expectation: false,
-            });
-            then_expr.hinto(then_cond).union(else_expr.hinto(else_cond))
-        })
+        cond_expr
+            .h_into(h_input)
+            .map(|h_cond| HExpr::Shared(HExprShared::new(Rc::new(h_cond))))
+            .and_then(|h_cond| {
+                // Safe to clone here without duplicating logic because 
+                // only the Rc pointer will be copied, not the underlying tree.
+                let h_then_cond = HScope::Filter(HFilter::new(true, h_cond.clone()));
+                let h_else_cond = HScope::Filter(HFilter::new(false, h_cond));
+
+                let h_then = then_expr.h_into(h_then_cond);
+                let h_else = else_expr.h_into(h_else_cond);
+                h_then.concat(h_else)
+            })
     }
 }
 
 impl HFrom<RExprBlock<Scope>> for HExpr {
-    fn hfrom(RExprBlock { stmt, box expr }: RExprBlock<Scope>, input: HScope) -> HRail<HExpr> {
-        stmt.hinto(input).and_then(|stmt| expr.hinto(stmt))
+    fn h_from(RExprBlock { stmt, box expr }: RExprBlock<Scope>, h_input: HScope) -> HRail<HExpr> {
+        stmt.h_into(h_input).and_then(|h_stmt| expr.h_into(h_stmt))
     }
 }
 
 impl HFrom<RStmt<Scope>> for HScope {
-    fn hfrom(value: RStmt<Scope>, input: HScope) -> HRail<HScope> {
+    fn h_from(value: RStmt<Scope>, h_input: HScope) -> HRail<HScope> {
         match value {
-            RStmt::Let(s) => s.hinto(input).map(HScope::Bind),
-            RStmt::Return(s) => s.hinto(input),
+            RStmt::Let(s) => s.h_into(h_input).map(HScope::Bind),
+            RStmt::Return(s) => s.h_into(h_input),
         }
     }
 }
 
 impl HFrom<RStmtLet<Scope>> for HBind {
-    fn hfrom(RStmtLet { id, box value }: RStmtLet<Scope>, input: HScope) -> HRail<Self> {
-        value.hinto(input).map(|value| HBind {
-            id,
-            value: Box::new(value)
-        })
+    fn h_from(RStmtLet { id, box value }: RStmtLet<Scope>, h_input: HScope) -> HRail<Self> {
+        value.h_into(h_input).map(|h_value| HBind::new(id, h_value))
     }
 }
 
 impl<T> HFrom<RStmtReturn<Scope>> for T {
-    fn hfrom(RStmtReturn { box value }: RStmtReturn<Scope>, input: HScope) -> HRail<Self> {
+    fn h_from(RStmtReturn { box value }: RStmtReturn<Scope>, h_input: HScope) -> HRail<Self> {
         value
-            .hinto(input)
-            .and_then(|value| HRail::empty(HOutput::new(HReturn { value })))
+            .h_into(h_input)
+            .and_then(|h_value| HRail::Output(HOutput::ret(h_value)))
     }
 }

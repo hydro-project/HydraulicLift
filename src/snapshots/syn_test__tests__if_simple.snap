@@ -7,7 +7,7 @@ Map {
     input: Union(
         Map {
             f: | () | { let value = 3 ; (value , ()) },
-            input: Map {
+            input: FilterMap {
                 f: | (cond , scope) | { if cond != true { return None } Some (scope) },
                 input: Tee {
                     inner: RefCell {
@@ -25,7 +25,7 @@ Map {
         },
         Map {
             f: | () | { let value = 4 ; (value , ()) },
-            input: Map {
+            input: FilterMap {
                 f: | (cond , scope) | { if cond != false { return None } Some (scope) },
                 input: Tee {
                     inner: RefCell {
