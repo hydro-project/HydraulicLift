@@ -10,16 +10,14 @@ use super::{ir::*, rail::HRail};
 /// Transforms an RExpr tree into a HOutput node
 impl From<RExpr<Scope>> for HOutput {
     fn from(expr: RExpr<Scope>) -> Self {
-        // The overall tree will have the special cased "HInput" scope.
-        // This will be replaced by the hydroflow+ input node in the next stage.
-        let rail = expr.h_into(HScope::Input(HInput));
+        // The overall tree will have the special cased "HInput" scope,
+        // which will be replaced by the hydroflow+ input node in the next stage.
+        let input = HScope::Input(HInput);
 
-        // If expr evaluated to an expression, it should be returned
-        match rail {
-            HRail::Inner(value) => HOutput::ret(value),
-            HRail::Output(output) => output,
-            HRail::Both(value, output) => output.concat(HOutput::ret(value)),
-        }
+        expr
+            .h_into(input) 
+            .map(HOutput::ret) // Return the final evaluated expression
+            .merge() // Merge both rails into single output
     }
 }
 
@@ -84,7 +82,7 @@ impl HFrom<RExprIf<Scope>> for HExpr {
             .h_into(h_input)
             .map(|h_cond| HExpr::Shared(HExprShared::new(Rc::new(h_cond))))
             .and_then(|h_cond| {
-                // Safe to clone here without duplicating logic because 
+                // Safe to clone here without duplicating logic because
                 // only the Rc pointer will be copied, not the underlying tree.
                 let h_then_cond = HScope::Filter(HFilter::new(true, h_cond.clone()));
                 let h_else_cond = HScope::Filter(HFilter::new(false, h_cond));

@@ -2,28 +2,31 @@ use crate::utils::functional::Semigroup;
 
 use super::ir::HOutput;
 
-/// Tracks current node alongside early returns
+/// Tracks current node alongside early returns.
 pub enum HRail<T> {
     Inner(T),
     Output(HOutput),
     Both(T, HOutput),
 }
+use HRail::*;
 
 impl<T> HRail<T> {
     pub fn concat_output(self, other: HOutput) -> Self {
         match self {
-            HRail::Inner(inner) => HRail::Both(inner, other),
-            HRail::Output(output) => HRail::Output(output.concat(other)),
-            HRail::Both(inner, output) => HRail::Both(inner, output.concat(other)),
+            Inner(inner) => Both(inner, other),
+            Output(output) => Output(output.concat(other)),
+            Both(inner, output) => Both(inner, output.concat(other)),
         }
     }
 }
 
-/// Monad
+/// Monad implementation.
+/// This is a special case of the haskell "These" Monad with first generic fixed to HOutput.
+/// It is important to note that this only works because HOutput is a Semigroup.
 impl<T> HRail<T> {
     /// Monad pure
     pub fn pure(inner: T) -> Self {
-        Self::Inner(inner)
+        Inner(inner)
     }
 
     /// Monad bind
@@ -32,9 +35,9 @@ impl<T> HRail<T> {
         F: FnOnce(T) -> HRail<U>,
     {
         match self {
-            HRail::Inner(inner) => f(inner),
-            HRail::Output(output) => HRail::Output(output),
-            HRail::Both(inner, output) => f(inner).concat_output(output),
+            Inner(inner) => f(inner),
+            Output(output) => Output(output),
+            Both(inner, output) => f(inner).concat_output(output),
         }
     }
 
@@ -47,19 +50,28 @@ impl<T> HRail<T> {
     }
 }
 
-impl<T: Semigroup> Semigroup for HRail<T>
-{
+impl<T: Semigroup> Semigroup for HRail<T> {
     fn concat(self, other: Self) -> Self {
         match (self, other) {
-            (HRail::Inner(i1), HRail::Inner(i2)) => Self::Inner(i1.concat(i2)),
-            (HRail::Inner(i), HRail::Output(o)) => Self::Both(i, o),
-            (HRail::Inner(i1), HRail::Both(i2, o)) => Self::Both(i1.concat(i2), o),
-            (HRail::Output(o), HRail::Inner(i)) => Self::Both(i, o),
-            (HRail::Output(o1), HRail::Output(o2)) => Self::Output(o1.concat(o2)),
-            (HRail::Output(o1), HRail::Both(i, o2)) => Self::Both(i, o1.concat(o2)),
-            (HRail::Both(i1, o), HRail::Inner(i2)) => Self::Both(i1.concat(i2), o),
-            (HRail::Both(i, o1), HRail::Output(o2)) => Self::Both(i, o1.concat(o2)),
-            (HRail::Both(i1, o1), HRail::Both(i2, o2)) => Self::Both(i1.concat(i2), o1.concat(o2)),
+            (Inner(a), Inner(b)) => Inner(a.concat(b)),
+            (Inner(a), Output(y)) => Both(a, y),
+            (Inner(a), Both(b, y)) => Both(a.concat(b), y),
+            (Output(x), Inner(b)) => Both(b, x),
+            (Output(x), Output(y)) => Output(x.concat(y)),
+            (Output(x), Both(b, y)) => Both(b, x.concat(y)),
+            (Both(a, x), Inner(b)) => Both(a.concat(b), x),
+            (Both(a, x), Output(y)) => Both(a, x.concat(y)),
+            (Both(a, x), Both(b, y)) => Both(a.concat(b), x.concat(y)),
+        }
+    }
+}
+
+impl HRail<HOutput> {
+    pub fn merge(self) -> HOutput {
+        match self {
+            Inner(a) => a,
+            Output(b) => b,
+            Both(a, b) => a.concat(b),
         }
     }
 }
