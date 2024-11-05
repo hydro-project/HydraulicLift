@@ -5,6 +5,7 @@ use syn::Ident;
 use super::scope::Scope;
 
 /// Special case of ToTokens which confirms that the tokenized version is a pattern
+/// TODO: add as_input vs as_output tokenization
 pub trait Pattern: ToTokens {}
 
 

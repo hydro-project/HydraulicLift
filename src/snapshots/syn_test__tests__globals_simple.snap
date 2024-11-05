@@ -5,13 +5,13 @@ expression: hf
 Map {
     f: | (value , _) | { value },
     input: Map {
-        f: | (x) | { let value = x ; (value , ()) },
+        f: | (x) | { let value = Some (x) ; (value , ()) },
         input: Map {
             f: | (x , ()) | { (x) },
             input: Map {
-                f: | (hf_in) | { let value = hf_in + 1 ; (value , ()) },
+                f: | () | { let value = format ! ("hello") ; (value , ()) },
                 input: Map {
-                    f: | (hf_in) | { (hf_in) },
+                    f: | _ | { () },
                     input: Tee {
                         inner: RefCell {
                             value: Placeholder,

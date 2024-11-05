@@ -17,9 +17,12 @@ Map {
                             f: | (x , ()) | { (x) },
                             input: Map {
                                 f: | (hf_in) | { let value = async { hf_in } ; (value , ()) },
-                                input: Tee {
-                                    inner: RefCell {
-                                        value: Placeholder,
+                                input: Map {
+                                    f: | (hf_in) | { (hf_in) },
+                                    input: Tee {
+                                        inner: RefCell {
+                                            value: Placeholder,
+                                        },
                                     },
                                 },
                             },

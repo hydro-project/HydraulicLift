@@ -13,9 +13,12 @@ Map {
                     inner: RefCell {
                         value: Map {
                             f: | () | { let value = 1 == 2 ; (value , ()) },
-                            input: Tee {
-                                inner: RefCell {
-                                    value: Placeholder,
+                            input: Map {
+                                f: | _ | { () },
+                                input: Tee {
+                                    inner: RefCell {
+                                        value: Placeholder,
+                                    },
                                 },
                             },
                         },
@@ -31,9 +34,12 @@ Map {
                     inner: RefCell {
                         value: Map {
                             f: | () | { let value = 1 == 2 ; (value , ()) },
-                            input: Tee {
-                                inner: RefCell {
-                                    value: Placeholder,
+                            input: Map {
+                                f: | _ | { () },
+                                input: Tee {
+                                    inner: RefCell {
+                                        value: Placeholder,
+                                    },
                                 },
                             },
                         },

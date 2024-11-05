@@ -22,9 +22,12 @@ Map {
                                     f: | (x , (hf_in)) | { (hf_in , x) },
                                     input: Map {
                                         f: | (hf_in) | { let value = 1 ; (value , (hf_in)) },
-                                        input: Tee {
-                                            inner: RefCell {
-                                                value: Placeholder,
+                                        input: Map {
+                                            f: | (hf_in) | { (hf_in) },
+                                            input: Tee {
+                                                inner: RefCell {
+                                                    value: Placeholder,
+                                                },
                                             },
                                         },
                                     },

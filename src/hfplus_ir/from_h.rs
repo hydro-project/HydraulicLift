@@ -6,10 +6,7 @@ use quote::quote;
 use crate::{
     h_ir::ir::*,
     utils::{
-        idents::ident,
-        pattern::{ExprPat, ScopePat},
-        scope::Scope,
-        tagged::Tagged,
+        idents::ident, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::Tagged
     },
 };
 
@@ -43,7 +40,7 @@ impl<'a> HfGen<'a> for Tagged<HExprRaw, Scope> {
             HExprRaw {
                 input,
                 expr,
-                scope: in_scope,
+                scope_def: in_scope,
             },
             out_scope,
         ): Self,
@@ -97,6 +94,18 @@ impl<'a> HfGen<'a> for HScope {
             HScope::Bind(s) => HfGen::gen(s),
             HScope::Filter(s) => HfGen::gen(s),
         }
+    }
+}
+
+impl<'a> HfGen<'a> for Tagged<HInput, Scope> {
+    fn gen(Tagged(h_node, outs): Self) -> HFS<'a> {
+        // Check if input is used or discarded
+        let ins = if outs.is_empty() {
+            ScopePat::Ident(ident("_"))
+        } else {
+            ScopePat::Destructured(outs.clone())
+        };
+        Self::gen_map(h_node, MapFunc::new(ins, ScopePat::Destructured(outs)))
     }
 }
 

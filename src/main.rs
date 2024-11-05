@@ -26,10 +26,19 @@ mod tests;
 
 pub fn main() {
     let hf = compile!(let hf_in = HfPlusNode::Placeholder => {
-        let x = hf_in + 1;
-        return x;
-        x + 2 // this doesn't show up in the resulting HF+!
+        // Send a message asking if hf_in*2 is a registered id
+        let id = hf_in * 2;
+        let message = if id == 0 {
+            "You asked for 0?".to_string()
+        } else if check_exists(id).await {
+            format!("Found id: {hf_in}")
+        } else {
+            return None;
+            let abcd = panic!("This panic doesn't show up in the resulting hydroflow+!");
+        };
+        Some(message)
     });
 
     println!("fn HFPlus() {{{}\n}}", visualize(hf));
 }
+

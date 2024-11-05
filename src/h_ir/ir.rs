@@ -43,7 +43,7 @@ derive_hnode!(HExprAwait: ExprPat);
 pub struct HExprRaw {
     pub expr: DebugStr<Expr>,
     pub input: HScope,
-    pub scope: Scope,
+    pub scope_def: Scope,
 }
 derive_hnode!(HExprRaw: ExprPat);
 
@@ -60,7 +60,7 @@ derive_hnode!(HExprShared: ExprPat);
 pub enum HScope {
     Bind(Tagged<HBind, Scope>),
     Filter(HFilter),
-    Input(HInput),
+    Input(Tagged<HInput, Scope>),
 }
 derive_hnode!(HScope: ScopePat);
 
@@ -121,11 +121,11 @@ impl Semigroup for HExpr {
 }
 
 impl HExprRaw {
-    pub fn new(expr: Expr, input: HScope, scope: Scope) -> Self {
+    pub fn new(expr: Expr, input: HScope, scope_def: Scope) -> Self {
         Self {
             expr: expr.into(),
             input,
-            scope,
+            scope_def,
         }
     }
 }

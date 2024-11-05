@@ -5,6 +5,7 @@ expression: visualize(hf)
 node0=Placeholder;
 
 node0.tee() 
+	.MAP(| (hf_in) | { (hf_in) }) 
 	.MAP(| (hf_in) | { let value = async { hf_in } ; (value , ()) }) 
 	.MAP(| (x , ()) | { (x) }) 
 	.MAP(| (x) | { let value = x ; (value , ()) }) 

@@ -57,3 +57,12 @@ fn test_async_simple() {
         y
     });
 }
+
+#[test]
+fn test_globals_simple() {
+    test_compile!(let hf_in = HfPlusNode::Placeholder => {
+        // format and Some are global identifiers which should not be treated as locals
+        let x = format!("hello");
+        Some(x)
+    });
+}

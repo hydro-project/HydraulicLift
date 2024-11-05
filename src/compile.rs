@@ -1,7 +1,7 @@
 use hydroflow_plus::ir::HfPlusNode;
 use syn::{Expr, Ident};
 
-use crate::{h_ir::ir::HOutput, hfplus_ir::from_h::generate_hf, r_ir::ir::RExpr, utils::scope::Scope};
+use crate::{h_ir::ir::HOutput, hfplus_ir::from_h::generate_hf, r_ir::{ir::RExpr, scope_analysis::tag::tag}};
 
 
 pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> HfPlusNode {
@@ -12,7 +12,7 @@ pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> H
     if debug {
         println!("fn r_expr(){{{:?}}}", r_expr);
     }
-    let r_expr_tagged = RExpr::<Scope>::from(r_expr);
+    let r_expr_tagged = tag(r_expr, input);
     if debug {
         println!("fn r_expr_tagged(){{{:?}}}", r_expr_tagged);
     }

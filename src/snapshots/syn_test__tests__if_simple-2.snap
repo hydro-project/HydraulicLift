@@ -5,6 +5,7 @@ expression: visualize(hf)
 node0=Placeholder;
 
 node1=node0.tee() 
+	.MAP(| _ | { () }) 
 	.MAP(| () | { let value = 1 == 2 ; (value , ()) });
 
 UNION(

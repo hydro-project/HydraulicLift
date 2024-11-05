@@ -11,11 +11,11 @@ use super::{
 };
 
 /// Transforms an RExpr tree into a HOutput node
-impl From<RExpr<Scope>> for HOutput {
-    fn from(expr: RExpr<Scope>) -> Self {
+impl From<Tagged<RExpr<Scope>, Scope>> for HOutput {
+    fn from(Tagged(expr, scope): Tagged<RExpr<Scope>, Scope>) -> Self {
         // The overall tree will have the special cased "HInput" scope,
         // which will be replaced by the hydroflow+ input node in the next stage.
-        let input = HScope::Input(HInput);
+        let input = HScope::Input(Tagged(HInput, scope));
 
         HRR::from(expr)
             .map(HOutput::ret) // Return the final evaluated expression
@@ -29,8 +29,9 @@ where
     U: 'static,
     HRR<U>: From<T>,
 {
-    fn from(Tagged(inner, scope): Tagged<T, Scope>) -> Self {
-        HRR::from(inner).map(|h_inner| Tagged(h_inner, scope))
+    fn from(Tagged(inner, scope_def): Tagged<T, Scope>) -> Self {
+        // Lower output tags into scopes
+        HRR::from(inner).map(|h_inner| Tagged(h_inner, scope_def))
     }
 }
 
