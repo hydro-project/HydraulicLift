@@ -1,6 +1,6 @@
 use crate::utils::functional::Semigroup;
 
-use super::ir::HOutput;
+use super::ir::{HOutput, HScope};
 
 /// Tracks current node alongside early returns.
 pub enum HRail<T> {
@@ -48,6 +48,13 @@ impl<T> HRail<T> {
     {
         self.and_then(|inner| HRail::pure(f(inner)))
     }
+
+    pub fn lift(self) -> HRailReader<T>
+    where
+        T: 'static,
+    {
+        HRailReader::reader(|_| self)
+    }
 }
 
 impl<T: Semigroup> Semigroup for HRail<T> {
@@ -67,11 +74,75 @@ impl<T: Semigroup> Semigroup for HRail<T> {
 }
 
 impl HRail<HOutput> {
+    /// Merge both rails into a single output
     pub fn merge(self) -> HOutput {
         match self {
             Inner(a) => a,
             Output(b) => b,
             Both(a, b) => a.concat(b),
         }
+    }
+}
+
+pub struct HRailReader<T>(Box<dyn FnOnce(HScope) -> HRail<T>>);
+
+/// Reader monad transformer over rail (the special-cased These monad)
+impl<T: 'static> HRailReader<T> {
+    pub fn run(self, s: HScope) -> HRail<T> {
+        self.0(s)
+    }
+
+    pub fn reader<F>(f: F) -> Self
+    where
+        F: 'static + FnOnce(HScope) -> HRail<T>,
+    {
+        Self(Box::new(f))
+    }
+
+    pub fn local<F>(self, f: F) -> Self
+    where
+        F: 'static + FnOnce(HScope) -> HScope,
+    {
+        Self::reader(|s| self.run(f(s)))
+    }
+
+    /// Runs self using the specialized scope
+    pub fn scoped(self, s: HScope) -> Self {
+        self.local(|_| s)
+    }
+
+    pub fn pure(value: T) -> Self {
+        HRail::pure(value).lift()
+    }
+
+    pub fn and_then<F, U>(self, f: F) -> HRailReader<U>
+    where
+        F: 'static + FnOnce(T) -> HRailReader<U>,
+        U: 'static,
+    {
+        HRailReader::reader(|s| self.run(s.clone()).and_then(|t| f(t).run(s)))
+    }
+
+    pub fn map<F, U>(self, f: F) -> HRailReader<U>
+    where
+        F: 'static + FnOnce(T) -> U,
+        U: 'static,
+    {
+        HRailReader::reader(|s| self.run(s).map(f))
+    }
+}
+
+impl HRailReader<HScope> {
+    pub fn ask() -> Self {
+        Self::reader(|s| HRail::pure(s))
+    }
+}
+
+impl<T> Semigroup for HRailReader<T>
+where
+    T: 'static + Semigroup,
+{
+    fn concat(self, other: Self) -> Self {
+        self.and_then(|t1| other.map(|t2| t1.concat(t2)))
     }
 }
