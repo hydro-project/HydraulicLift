@@ -1,0 +1,32 @@
+---
+source: src/tests.rs
+expression: hf
+---
+Map {
+    f: | (value , _) | { value },
+    input: Map {
+        f: | (y) | { let value = y ; (value , ()) },
+        input: Map {
+            f: | (y , ()) | { (y) },
+            input: Persist(
+                Map {
+                    f: async | (future , scope) | { let value = future . await ; (value , scope) },
+                    input: Map {
+                        f: | (x) | { let value = x ; (value , ()) },
+                        input: Map {
+                            f: | (x , ()) | { (x) },
+                            input: Map {
+                                f: | (hf_in) | { let value = async { hf_in } ; (value , ()) },
+                                input: Tee {
+                                    inner: RefCell {
+                                        value: Placeholder,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            ),
+        },
+    },
+}

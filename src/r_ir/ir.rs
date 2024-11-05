@@ -12,7 +12,7 @@ use crate::utils::{debug::DebugStr, tagged::Tagged};
 pub enum RExpr<M = ()> {
     If(RExprIf<M>),
     Block(RExprBlock<M>),
-    //TODO: add await
+    Await(RExprAwait<M>),
     Raw(Tagged<RExprRaw<M>, M>), //TODO: expand
 }
 
@@ -28,6 +28,9 @@ pub struct RExprBlock<M = ()> {
     pub stmt: RStmt<M>,
     pub expr: Box<RExpr<M>>,
 }
+
+#[derive(Debug, Clone)]
+pub struct RExprAwait<M = ()>(pub Box<RExpr<M>>);
 
 #[derive(Debug, Clone)]
 pub struct RExprRaw<M = ()> {
@@ -69,6 +72,12 @@ impl<M> RExprBlock<M> {
             stmt,
             expr: Box::new(expr),
         }
+    }
+}
+
+impl<M> RExprAwait<M> {
+    pub fn new(expr: RExpr<M>) -> Self {
+        Self(Box::new(expr))
     }
 }
 

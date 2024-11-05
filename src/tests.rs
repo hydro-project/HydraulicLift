@@ -48,3 +48,12 @@ fn test_if_simple() {
         }
     });
 }
+
+#[test]
+fn test_async_simple() {
+    test_compile!(let hf_in = HfPlusNode::Placeholder => {
+        let x = async { hf_in };
+        let y = x.await;
+        y
+    });
+}

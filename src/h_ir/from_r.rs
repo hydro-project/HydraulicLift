@@ -39,6 +39,7 @@ impl From<RExpr<Scope>> for HRR<HExpr> {
         match value {
             RExpr::If(s) => HRR::from(s),
             RExpr::Block(s) => HRR::from(s),
+            RExpr::Await(s) => HRR::from(s),
             RExpr::Raw(s) => HRR::from(s).map(HExpr::Raw),
         }
     }
@@ -81,6 +82,12 @@ impl From<RExprIf<Scope>> for HRR<HExpr> {
 impl From<RExprBlock<Scope>> for HRR<HExpr> {
     fn from(RExprBlock { stmt, box expr }: RExprBlock<Scope>) -> Self {
         HRR::from(stmt).and_then(|h_stmt| HRR::from(expr).scoped(h_stmt))
+    }
+}
+
+impl From<RExprAwait<Scope>> for HRR<HExpr> {
+    fn from(RExprAwait(box inner): RExprAwait<Scope>) -> Self {
+        HRR::from(inner).map(|h_inner| HExpr::Await(HExprAwait::new(h_inner)))
     }
 }
 

@@ -19,6 +19,13 @@ pub struct FilterMapFunc<I, O> {
     body: TokenStream,
 }
 
+// :: I -> Future<O>
+pub struct MapAsyncFunc<I, O> {
+    ins: I,
+    outs: O,
+    body: TokenStream,
+}
+
 impl<I, O> MapFunc<I, O> {
     pub fn newb(ins: I, outs: O, body: TokenStream) -> Self {
         Self { ins, outs, body }
@@ -30,6 +37,16 @@ impl<I, O> MapFunc<I, O> {
 }
 
 impl<I, O> FilterMapFunc<I, O> {
+    pub fn newb(ins: I, outs: O, body: TokenStream) -> Self {
+        Self { ins, outs, body }
+    }
+
+    pub fn new(ins: I, outs: O) -> Self {
+        Self::newb(ins, outs, TokenStream::new())
+    }
+}
+
+impl<I, O> MapAsyncFunc<I, O> {
     pub fn newb(ins: I, outs: O, body: TokenStream) -> Self {
         Self { ins, outs, body }
     }
@@ -58,6 +75,18 @@ impl<I: Pattern, O: Pattern> From<FilterMapFunc<I, O>> for Expr {
             {
                 #body
                 Some(#outs)
+            }
+        }
+    }
+}
+
+impl<I: Pattern, O: Pattern> From<MapAsyncFunc<I, O>> for Expr {
+    fn from(MapAsyncFunc { ins, outs, body }: MapAsyncFunc<I, O>) -> Self {
+        parse_quote! {
+            async |#ins|
+            {
+                #body
+                #outs
             }
         }
     }

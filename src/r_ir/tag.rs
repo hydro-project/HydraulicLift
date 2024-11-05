@@ -24,6 +24,7 @@ impl From<RExpr> for TS<RExpr<Scope>> {
         match untagged {
             RExpr::If(s) => TS::from(s).map(RExpr::If),
             RExpr::Block(s) => TS::from(s).map(RExpr::Block),
+            RExpr::Await(s) => TS::from(s).map(RExpr::Await),
             RExpr::Raw(s) => TS::from(s).map(RExpr::Raw),
         }
     }
@@ -49,6 +50,12 @@ impl From<RExprBlock> for TS<RExprBlock<Scope>> {
         // x
         // Solution: Maybe disallow re-using identifiers anywhere?
         TS::from(expr).and_then(|expr| TS::from(stmt).map(|stmt| RExprBlock::new(stmt, expr)))
+    }
+}
+
+impl From<RExprAwait> for TS<RExprAwait<Scope>> {
+    fn from(RExprAwait(box inner): RExprAwait) -> Self {
+        TS::from(inner).map(RExprAwait::new)
     }
 }
 

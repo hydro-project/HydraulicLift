@@ -5,5 +5,5 @@ expression: visualize(hf)
 node0=Placeholder;
 
 node0.tee() 
-.MAP(| (hf_in) | { let value = hf_in ; (value , ()) }) 
-.MAP(| (value , _) | { value })
+	.MAP(| (hf_in) | { let value = hf_in ; (value , ()) }) 
+	.MAP(| (value , _) | { value })

@@ -1,5 +1,5 @@
 use syn::{
-    parse_quote, Block, Expr, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Pat, PatIdent, Stmt,
+    parse_quote, Block, Expr, ExprAwait, ExprBlock, ExprIf, ExprReturn, Local, LocalInit, Pat, PatIdent, Stmt
 };
 
 use crate::utils::idents::ident;
@@ -14,6 +14,7 @@ impl From<Expr> for RExpr {
         match value {
             Expr::Block(ExprBlock { block: s, .. }) => s.into(),
             Expr::If(s) => Self::If(s.into()),
+            Expr::Await(s) => Self::Await(s.into()),
             s => Self::Raw(RExprRaw::from(s).into()),
         }
     }
@@ -64,6 +65,12 @@ impl From<Block> for RExpr {
             return_expr = Self::Block(RExprBlock::new(stmt.into(), return_expr));
         }
         return_expr
+    }
+}
+
+impl From<ExprAwait> for RExprAwait {
+    fn from(ExprAwait { box base, .. }: ExprAwait) -> Self {
+        Self::new(base.into())
     }
 }
 

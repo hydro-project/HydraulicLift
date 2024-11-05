@@ -26,12 +26,18 @@ derive_hnode!(HReturn: Ident);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HExpr {
     Raw(Tagged<HExprRaw, Scope>),
+    Await(HExprAwait),
     // A merge point
     Union(HExprUnion),
     /// A branch point
     Shared(HExprShared),
 }
 derive_hnode!(HExpr: ExprPat);
+
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HExprAwait(pub Box<HExpr>);
+derive_hnode!(HExprAwait: ExprPat);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HExprRaw {
@@ -121,6 +127,12 @@ impl HExprRaw {
             input,
             scope,
         }
+    }
+}
+
+impl HExprAwait {
+    pub fn new(inner: HExpr) -> Self {
+        Self(Box::new(inner))
     }
 }
 

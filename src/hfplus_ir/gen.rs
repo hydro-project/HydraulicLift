@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    func::{FilterMapFunc, MapFunc},
+    func::{FilterMapFunc, MapAsyncFunc, MapFunc},
     memo::{HfMemoize, HfMemos},
 };
 
@@ -102,7 +102,7 @@ where
     O: 'a + Pattern,
     T: HfGen<'a> + HNode<O = O>,
 {
-    fn gen_filter_map<U, I: Pattern>(h_node: U, func: FilterMapFunc<I, O>) -> HFS<'a>
+    fn gen_filter_map<U, I>(h_node: U, func: FilterMapFunc<I, O>) -> HFS<'a>
     where
         U: HfGen<'a> + HNode<O = I>,
         I: 'a + Pattern,
@@ -149,10 +149,11 @@ where
     O: Pattern,
 {
     /// Generate a node merges two input streams.
-    fn gen_union<U1, U2, I: Pattern>(h_node1: U1, h_node2: U2) -> HFS<'a>
+    fn gen_union<U1, U2, I>(h_node1: U1, h_node2: U2) -> HFS<'a>
     where
         U1: 'a + HfGen<'a> + HNode<O = I>,
-        U2: 'a + HfGen<'a> + HNode<O = I>;
+        U2: 'a + HfGen<'a> + HNode<O = I>,
+        I: Pattern;
 }
 
 impl<'a, T, O> HfGenUnion<'a, O> for T
@@ -160,13 +161,42 @@ where
     O: Pattern,
     T: HfGen<'a> + HNode<O = O>,
 {
-    fn gen_union<U1, U2, I: Pattern>(h_node1: U1, h_node2: U2) -> HFS<'a>
+    fn gen_union<U1, U2, I>(h_node1: U1, h_node2: U2) -> HFS<'a>
     where
         U1: 'a + HfGen<'a> + HNode<O = I>,
         U2: 'a + HfGen<'a> + HNode<O = I>,
+        I: Pattern,
     {
         U1::gen(h_node1).and_then(|hf_node1| {
             U2::gen(h_node2).map(|hf_node2| Box::new(HfPlusNode::Union(hf_node1, hf_node2)))
         })
+    }
+}
+
+pub trait HfGenMapAsync<'a, O>: HfGen<'a> + HNode<O = O>
+where
+    O: 'a + Pattern,
+{
+    /// Generate a node which maps over an input using an async function.
+    fn gen_map_async<U, I>(h_node: U, func: MapAsyncFunc<I, O>) -> HFS<'a>
+    where
+        U: HfGen<'a> + HNode<O = I>,
+        I: 'a + Pattern;
+}
+
+impl<'a, T, O> HfGenMapAsync<'a, O> for T
+where
+    O: 'a + Pattern,
+    T: HfGen<'a> + HNode<O = O>,
+{
+    fn gen_map_async<U, I>(h_node: U, func: MapAsyncFunc<I, O>) -> HFS<'a>
+    where
+        U: HfGen<'a> + HNode<O = I>,
+        I: 'a + Pattern,
+    {
+        U::gen(h_node)
+            .map(|hf_node| HfPlusNode::Map { input: hf_node, f: Expr::from(func).into() })
+            .map(|hf_node| HfPlusNode::Persist(Box::new(hf_node))) // TODO: replace Persist with poll_futures
+            .map(Box::new)
     }
 }

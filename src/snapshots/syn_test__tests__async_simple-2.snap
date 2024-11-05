@@ -1,0 +1,15 @@
+---
+source: src/tests.rs
+expression: visualize(hf)
+---
+node0=Placeholder;
+
+node0.tee() 
+	.MAP(| (hf_in) | { let value = async { hf_in } ; (value , ()) }) 
+	.MAP(| (x , ()) | { (x) }) 
+	.MAP(| (x) | { let value = x ; (value , ()) }) 
+	.MAP(async | (future , scope) | { let value = future . await ; (value , scope) }) 
+	.POLL_FUTURES() 
+	.MAP(| (y , ()) | { (y) }) 
+	.MAP(| (y) | { let value = y ; (value , ()) }) 
+	.MAP(| (value , _) | { value })
