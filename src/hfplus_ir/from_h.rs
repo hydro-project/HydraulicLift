@@ -4,7 +4,7 @@ use std::{cell::RefCell, rc::Rc};
 use hydroflow_plus::ir::HfPlusNode;
 use quote::quote;
 
-use crate::{h_ir::ir::*, utils::{functional::State, idents::ident, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::Tagged}};
+use crate::{h_ir::ir::*, utils::{idents::ident, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::Tagged}};
 
 use super::{func::{FilterMapFunc, MapFunc}, gen::*, memo::{HfMemoize, HfMemos}};
 

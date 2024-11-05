@@ -3,10 +3,6 @@ pub trait Semigroup {
     fn concat(self, other: Self) -> Self;
 }
 
-pub trait Monoid: Semigroup {
-    fn empty() -> Self;
-}
-
 impl<T> Semigroup for Option<T>
 where
     T: Semigroup,
@@ -21,30 +17,6 @@ where
     }
 }
 
-impl<T> Monoid for Option<T> 
-where T: Semigroup{
-    fn empty() -> Self {
-        None
-    }
-}
-
-// TODO: Implement unified fake functor/applicative/monad
-
-/// No higher kinded types :(
-pub trait FakeFunctor {
-    type T;
-    type With<U>;
-    fn map<F, U>(self, f: F) -> Self::With<U> where F: FnOnce(Self::T) -> U ;
-}
-
-impl<X, T> FakeFunctor for (X, T) {
-    type T=T;
-    type With<U> = (X, U);
-    fn map<F, U>(self, f: F) -> Self::With<U> where F: FnOnce(Self::T) -> U {
-        (self.0, f(self.1))
-    }
-}
-
 /// Simplified state monad
 pub struct State<'a, S, T>(Box<dyn 'a + FnOnce(S) -> (S, T)>);
 
@@ -56,10 +28,6 @@ impl<'a, S: 'a, T: 'a> State<'a, S, T> {
 
     pub fn eval(self, state: S) -> T {
         self.run(state).1
-    }
-
-    pub fn exec(self, state: S) -> S {
-        self.run(state).0
     }
 
     pub fn state<F>(f: F) -> Self

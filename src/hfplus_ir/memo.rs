@@ -2,12 +2,7 @@ use std::{cell::RefCell, collections::HashMap, hash::Hash, rc::Rc};
 
 use hydroflow_plus::ir::HfPlusNode;
 
-use crate::{
-    h_ir::ir::{HExpr, HInput},
-    utils::functional::FakeFunctor,
-};
-
-use super::gen::HfGen;
+use crate::h_ir::ir::{HExpr, HInput};
 
 /// Memoized conversions from Rc<K: HNode> to Rc<HfPlusNode>.
 /// This allowes for constructing tees off of shared inputs

@@ -12,55 +12,35 @@ use super::ir::*;
 /// Tags nodes with their output scopes
 impl From<RExpr> for RExpr<Scope> {
     fn from(untagged: RExpr) -> Self {
-        Tag::tag(untagged).eval(Scope::empty())
+        TS::from(untagged).eval(Scope::empty())
     }
 }
 
 /// State monad of type Scope
-type TState<T> = State<'static, Scope, T>;
+type TS<T> = State<'static, Scope, T>;
 
-/// Adds scope tags to raw expressions.
-/// Records the needed output scope for any Tagged item.
-trait Tag {
-    type Out;
-    /// tag<T> :: T<()> -> needed_output -> (T<Scope>, needed_input)
-    fn tag(untagged: Self) -> TState<Self::Out>;
-}
-
-impl Tag for RExpr {
-    type Out = RExpr<Scope>;
-
-    fn tag(untagged: Self) -> TState<Self::Out> {
+impl From<RExpr> for TS<RExpr<Scope>> {
+    fn from(untagged: RExpr) -> Self {
         match untagged {
-            RExpr::If(s) => Tag::tag(s).map(RExpr::If),
-            RExpr::Block(s) => Tag::tag(s).map(RExpr::Block),
-            RExpr::Raw(s) => Tag::tag(s).map(RExpr::Raw),
+            RExpr::If(s) => TS::from(s).map(RExpr::If),
+            RExpr::Block(s) => TS::from(s).map(RExpr::Block),
+            RExpr::Raw(s) => TS::from(s).map(RExpr::Raw),
         }
     }
 }
 
-impl Tag for RExprIf {
-    type Out = RExprIf<Scope>;
-
-    fn tag(
-        Self {
-            box cond_expr,
-            box then_expr,
-            box else_expr,
-        }: Self,
-    ) -> TState<RExprIf<Scope>> {
-        Tag::tag(then_expr)
-            .zip(Tag::tag(else_expr))
+impl From<RExprIf> for TS<RExprIf<Scope>> {
+    fn from(RExprIf { box cond_expr, box then_expr, box else_expr }: RExprIf) -> Self {
+        TS::from(then_expr)
+            .zip(TS::from(else_expr))
             .and_then(|(then_expr, else_expr)| {
-                Tag::tag(cond_expr).map(|cond_expr| RExprIf::new(cond_expr, then_expr, else_expr))
+                TS::from(cond_expr).map(|cond_expr| RExprIf::new(cond_expr, then_expr, else_expr))
             })
     }
 }
 
-impl Tag for RExprBlock {
-    type Out = RExprBlock<Scope>;
-
-    fn tag(Self { stmt, box expr }: Self) -> TState<RExprBlock<Scope>> {
+impl From<RExprBlock> for TS<RExprBlock<Scope>> {
+    fn from(RExprBlock { stmt, box expr }: RExprBlock) -> Self {
         // TODO: this doesnt include nested scopes!!!
         // let x = 5;
         // {
@@ -68,20 +48,13 @@ impl Tag for RExprBlock {
         // }
         // x
         // Solution: Maybe disallow re-using identifiers anywhere?
-        Tag::tag(expr).and_then(|expr| Tag::tag(stmt).map(|stmt| RExprBlock::new(stmt, expr)))
+        TS::from(expr).and_then(|expr| TS::from(stmt).map(|stmt| RExprBlock::new(stmt, expr)))
     }
 }
 
-impl Tag for RExprRaw {
-    type Out = RExprRaw<Scope>;
-
-    fn tag(
-        Self {
-            expr: DebugStr(expr),
-            scope: (),
-        }: Self,
-    ) -> TState<RExprRaw<Scope>> {
-        TState::state(|output| {
+impl From<RExprRaw> for TS<RExprRaw<Scope>> {
+    fn from(RExprRaw { expr: DebugStr(expr), scope: () }: RExprRaw) -> Self {
+        TS::state(|output| {
             // Visit the underlying expression backwards.
             // Transform the needed output scope into the needed input scope.
             let input = ScopeVisitor::visit(output, &expr);
@@ -90,45 +63,38 @@ impl Tag for RExprRaw {
     }
 }
 
-impl Tag for RStmt {
-    type Out = RStmt<Scope>;
-
-    fn tag(untagged: Self) -> TState<RStmt<Scope>> {
-        match untagged {
-            RStmt::Let(s) => Tag::tag(s).map(RStmt::Let),
-            RStmt::Return(s) => Tag::tag(s).map(RStmt::Return),
+impl From<RStmt> for TS<RStmt<Scope>> {
+    fn from(value: RStmt) -> Self {
+        match value {
+            RStmt::Let(s) => TS::from(s).map(RStmt::Let),
+            RStmt::Return(s) => TS::from(s).map(RStmt::Return),
         }
     }
 }
 
-impl Tag for RStmtLet {
-    type Out = RStmtLet<Scope>;
-
-    fn tag(Self { id, box value }: Self) -> TState<RStmtLet<Scope>> {
+impl From<RStmtLet> for TS<RStmtLet<Scope>> {
+    fn from(RStmtLet { id, box value }: RStmtLet) -> Self {
         let id2 = id.clone();
-        TState::modify(move |output| output.without(&id2))
-            .and(Tag::tag(value).map(|value| RStmtLet::new(id, value)))
+        TS::modify(move |output| output.without(&id2))
+            .and(TS::from(value).map(|value| RStmtLet::new(id, value)))
     }
 }
 
-impl Tag for RStmtReturn {
-    type Out = RStmtReturn<Scope>;
-
-    fn tag(Self { box value }: Self) -> TState<RStmtReturn<Scope>> {
-        TState::put(Scope::empty()).and(Tag::tag(value).map(|value| RStmtReturn::new(value)))
+impl From<RStmtReturn> for TS<RStmtReturn<Scope>> {
+    fn from(RStmtReturn { box value }: RStmtReturn) -> Self {
+        TS::put(Scope::empty()).and(TS::from(value).map(|value| RStmtReturn::new(value)))
     }
 }
 
-impl<U1, U2> Tag for Tagged<U1>
+impl<U1, U2> From<Tagged<U1>> for TS<Tagged<U2, Scope>>
 where
-    U1: 'static + Tag<Out = U2>,
-    U2: 'static
+    U1: 'static,
+    U2: 'static,
+    TS<U2>: From<U1>
 {
-    type Out = Tagged<U2, Scope>;
-
-    fn tag(Self(inner, ()): Self) -> TState<Tagged<U2, Scope>> {
+    fn from(Tagged(inner, ()): Tagged<U1>) -> Self {
         // Store the needed output scope of inner in the Tagged structure
-        TState::get().and_then(|output| Tag::tag(inner).map(|inner| Tagged(inner, output)))
+        TS::get().and_then(|output| TS::from(inner).map(|inner| Tagged(inner, output)))
     }
 }
 

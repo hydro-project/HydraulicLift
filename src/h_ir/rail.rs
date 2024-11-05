@@ -49,11 +49,11 @@ impl<T> HRail<T> {
         self.and_then(|inner| HRail::pure(f(inner)))
     }
 
-    pub fn lift(self) -> HRailReader<T>
+    pub fn lift(self) -> HRR<T>
     where
         T: 'static,
     {
-        HRailReader::reader(|_| self)
+        HRR::reader(|_| self)
     }
 }
 
@@ -84,10 +84,12 @@ impl HRail<HOutput> {
     }
 }
 
-pub struct HRailReader<T>(Box<dyn FnOnce(HScope) -> HRail<T>>);
+/// Produces a rail of T from a scoped input.
+/// Represents a reader monad transformer applied to the inner rail monad
+pub struct HRR<T>(Box<dyn FnOnce(HScope) -> HRail<T>>);
 
-/// Reader monad transformer over rail (the special-cased These monad)
-impl<T: 'static> HRailReader<T> {
+/// Reader monad transformer over rail monad (rail is These)
+impl<T: 'static> HRR<T> {
     pub fn run(self, s: HScope) -> HRail<T> {
         self.0(s)
     }
@@ -115,30 +117,30 @@ impl<T: 'static> HRailReader<T> {
         HRail::pure(value).lift()
     }
 
-    pub fn and_then<F, U>(self, f: F) -> HRailReader<U>
+    pub fn and_then<F, U>(self, f: F) -> HRR<U>
     where
-        F: 'static + FnOnce(T) -> HRailReader<U>,
+        F: 'static + FnOnce(T) -> HRR<U>,
         U: 'static,
     {
-        HRailReader::reader(|s| self.run(s.clone()).and_then(|t| f(t).run(s)))
+        HRR::reader(|s| self.run(s.clone()).and_then(|t| f(t).run(s)))
     }
 
-    pub fn map<F, U>(self, f: F) -> HRailReader<U>
+    pub fn map<F, U>(self, f: F) -> HRR<U>
     where
         F: 'static + FnOnce(T) -> U,
         U: 'static,
     {
-        HRailReader::reader(|s| self.run(s).map(f))
+        self.and_then(|x| HRR::pure(f(x)))
     }
 }
 
-impl HRailReader<HScope> {
+impl HRR<HScope> {
     pub fn ask() -> Self {
         Self::reader(|s| HRail::pure(s))
     }
 }
 
-impl<T> Semigroup for HRailReader<T>
+impl<T> Semigroup for HRR<T>
 where
     T: 'static + Semigroup,
 {
