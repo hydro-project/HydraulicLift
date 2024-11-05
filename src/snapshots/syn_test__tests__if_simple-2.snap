@@ -7,14 +7,11 @@ node0=Placeholder;
 node1=node0.tee() 
 .MAP(| () | { let value = 1 == 2 ; (value , ()) });
 
-node2=node0.tee() 
-.MAP(| () | { let value = 1 == 2 ; (value , ()) });
-
 UNION(
 	node1.tee() 
 	.FILTER_MAP(| (cond , scope) | { if cond != true { return None } Some (scope) }) 
 	.MAP(| () | { let value = 3 ; (value , ()) }),
-	node2.tee() 
+	node1.tee() 
 	.FILTER_MAP(| (cond , scope) | { if cond != false { return None } Some (scope) }) 
 	.MAP(| () | { let value = 4 ; (value , ()) })) 
 .MAP(| (value , _) | { value })

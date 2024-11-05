@@ -46,71 +46,78 @@ impl<X, T> FakeFunctor for (X, T) {
 }
 
 /// Simplified state monad
-pub struct State<S, T>(Box<dyn FnOnce(S) -> (T, S)>);
+pub struct State<'a, S, T>(Box<dyn 'a + FnOnce(S) -> (S, T)>);
 
 /// Simplified state monad
-impl<S: 'static, T: 'static> State<S, T> {
-    pub fn run(self, state: S) -> (T, S) {
+impl<'a, S: 'a, T: 'a> State<'a, S, T> {
+    pub fn run(self, state: S) -> (S, T) {
         self.0(state)
     }
 
     pub fn eval(self, state: S) -> T {
-        self.run(state).0
+        self.run(state).1
     }
 
     pub fn exec(self, state: S) -> S {
-        self.run(state).1
+        self.run(state).0
     }
 
     pub fn state<F>(f: F) -> Self
     where
-        F: 'static + FnOnce(S) -> (T, S),
+        F: 'a + FnOnce(S) -> (S, T),
     {
         Self(Box::new(|s| f(s)))
     }
 
     pub fn pure(t: T) -> Self {
-        Self::state(|s| (t, s))
+        Self::state(|s| (s, t))
     }
 
-    pub fn and_then<U, F>(self, f: F) -> State<S, U>
+    pub fn and_then<U, F>(self, f: F) -> State<'a, S, U>
     where
-        U: 'static,
-        F: 'static + FnOnce(T) -> State<S, U>,
+        U: 'a,
+        F: 'a + FnOnce(T) -> State<'a, S, U>,
     {
         State::state(|s1| {
-            let (t, s2) = self.0(s1);
+            let (s2, t) = self.0(s1);
             f(t).0(s2)
         })
     }
 
-    pub fn and<U: 'static>(self, u: State<S, U>) -> State<S, U> {
+    pub fn and<U: 'a>(self, u: State<'a, S, U>) -> State<'a, S, U> {
         self.and_then(|_| u)
     }
 
-    pub fn map<U, F>(self, f: F) -> State<S, U>
+    pub fn map<U, F>(self, f: F) -> State<'a, S, U>
     where
-        F: 'static + FnOnce(T) -> U,
-        U: 'static,
+        F: 'a + FnOnce(T) -> U,
+        U: 'a,
     {
         self.and_then(|t| State::pure(f(t)))
+    }
+
+    pub fn map_const<U>(self, u: U) -> State<'a, S, U>
+    where
+        U: 'a,
+    {
+        self.map(|_| u)
     }
 }
 
 /// Additional state monad helper function
-impl<S: 'static> State<S, ()> {
-    pub fn modify<F>(f: F) -> State<S, ()>
+impl<'a, S: 'a> State<'a, S, ()> {
+    pub fn modify<F>(f: F) -> State<'a, S, ()>
     where
-        F: 'static + FnOnce(S) -> S,
+        F: 'a + FnOnce(S) -> S,
     {
-        Self::state(|s| ((), f(s)))
+        Self::state(|s| (f(s), ()))
     }
 }
 
 /// State monad helper
-impl<S> State<S, S>
+impl<'a, S> State<'a, S, S>
 where
-    S: 'static + Clone,
+    S: 'a + Clone,
 {
     pub fn get() -> Self {
         Self::state(|s| (s.clone(), s))
@@ -118,26 +125,26 @@ where
 }
 
 /// State monad helper
-impl<S> State<S, ()>
+impl<'a, S> State<'a, S, ()>
 where
-    S: 'static,
+    S: 'a,
 {
     pub fn put(s: S) -> Self {
-        Self::state(|_| ((), s))
+        Self::state(|_| (s, ()))
     }
 }
 
 /// MonadZip implementation
-impl<S, T> State<S, T>
+impl<'a, S, T> State<'a, S, T>
 where
-    S: 'static + Semigroup + Clone,
-    T: 'static,
+    S: 'a + Semigroup + Clone,
+    T: 'a,
 {
-    pub fn zip<U: 'static>(self, other: State<S, U>) -> State<S, (T, U)> {
+    pub fn zip<U: 'a>(self, other: State<'a, S, U>) -> State<'a, S, (T, U)> {
         State(Box::new(|s| {
-            let (t1, s1) = self.run(s.clone());
-            let (t2, s2) = other.run(s);
-            ((t1, t2), s1.concat(s2))
+            let (s1, t1) = self.run(s.clone());
+            let (s2, t2) = other.run(s);
+            (s1.concat(s2), (t1, t2))
         }))
     }
 }

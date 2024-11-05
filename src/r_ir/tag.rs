@@ -17,7 +17,7 @@ impl From<RExpr> for RExpr<Scope> {
 }
 
 /// State monad of type Scope
-type TState<T> = State<Scope, T>;
+type TState<T> = State<'static, Scope, T>;
 
 /// Adds scope tags to raw expressions.
 /// Records the needed output scope for any Tagged item.
@@ -85,7 +85,7 @@ impl Tag for RExprRaw {
             // Visit the underlying expression backwards.
             // Transform the needed output scope into the needed input scope.
             let input = ScopeVisitor::visit(output, &expr);
-            (RExprRaw::new(expr, input.clone()), input)
+            (input.clone(), RExprRaw::new(expr, input))
         })
     }
 }

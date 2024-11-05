@@ -63,7 +63,7 @@ impl HFrom<RExprRaw<Scope>> for HExprRaw {
         expr: DebugStr(expr),
         scope,
     }: RExprRaw<Scope>) -> HRailReader<Self> {
-        HRailReader::ask().and_then(|h_input| HRailReader::pure(HExprRaw::new(expr, h_input, scope)))
+        HRailReader::ask().map(|h_input| HExprRaw::new(expr, h_input, scope))
         
     }
 }

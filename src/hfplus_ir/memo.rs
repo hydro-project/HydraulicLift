@@ -11,12 +11,14 @@ use super::gen::HfGen;
 
 /// Memoized conversions from Rc<K: HNode> to Rc<HfPlusNode>.
 /// This allowes for constructing tees off of shared inputs
+#[derive(Clone, Debug)]
 pub struct HfMemos<'a> {
     exprs: HfMemo<'a, HExpr>,
     inputs: HfMemo<'a, HInput>,
 }
 
 /// Memoized conversion from K to a HF+ node.
+#[derive(Clone, Debug)]
 struct HfMemo<'a, K> {
     map: HashMap<Rc<K>, Rc<RefCell<HfPlusNode<'a>>>>,
 }
@@ -27,7 +29,7 @@ where K: Hash + Eq + Clone {
     fn get(&self, key: &Rc<K>) -> Option<Rc<RefCell<HfPlusNode<'a>>>>;
 
     /// Memoize a mapping.
-    fn with(self, key: Rc<K>, value: HfPlusNode<'a>) -> Self;
+    fn with(self, key: Rc<K>, value: Rc<RefCell<HfPlusNode<'a>>>) -> Self;
 }
 
 impl<'a> HfMemos<'a> {
@@ -53,9 +55,9 @@ where K: Hash + Eq + Clone {
         self.map.get(key).map(Clone::clone)
     }
 
-    fn with(mut self, key: Rc<K>, value: HfPlusNode<'a>) -> Self {
+    fn with(mut self, key: Rc<K>, value: Rc<RefCell<HfPlusNode<'a>>>) -> Self {
         self.map
-            .insert(key, Rc::new(RefCell::new(value)));
+            .insert(key, value);
         self
     }
 }
@@ -65,7 +67,7 @@ impl<'a> HfMemoize<'a, HExpr> for HfMemos<'a> {
         self.exprs.get(key)
     }
 
-    fn with(mut self, key: Rc<HExpr>, value: HfPlusNode<'a>) -> Self {
+    fn with(mut self, key: Rc<HExpr>, value: Rc<RefCell<HfPlusNode<'a>>>) -> Self {
         self.exprs = self.exprs.with(key, value);
         self
     }
@@ -76,27 +78,8 @@ impl<'a> HfMemoize<'a, HInput> for HfMemos<'a> {
         self.inputs.get(key)
     }
 
-    fn with(mut self, key: Rc<HInput>, value: HfPlusNode<'a>) -> Self {
+    fn with(mut self, key: Rc<HInput>, value: Rc<RefCell<HfPlusNode<'a>>>) -> Self {
         self.inputs = self.inputs.with(key, value);
         self
-    }
-}
-
-pub trait HfMemoGen<'a, K: Hash+Eq>: HfMemoize<'a, K> + Sized 
-where K: Hash + Eq + Clone {
-    /// Either gets the memoized value, or generates and memoize it
-    fn get_or_gen(self, key: Rc<K>) -> (Self, Rc<RefCell<HfPlusNode<'a>>>);
-}
-
-impl<'a, K> HfMemoGen<'a, K> for HfMemos<'a>
-where
-    HfMemos<'a>: HfMemoize<'a, K>,
-    K: Hash+Eq + Clone + HfGen<'a>,
-{
-    fn get_or_gen(self, key: Rc<K>) -> (Self, Rc<RefCell<HfPlusNode<'a>>>) {
-        match self.get(&key) {
-            Some(value) => (self, value),
-            None => K::gen((*key).clone(), self).map(|box node| Rc::new(RefCell::new(node))),
-        }
     }
 }
