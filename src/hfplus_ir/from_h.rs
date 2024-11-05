@@ -18,7 +18,7 @@ pub fn generate_hf<'a>(h_node: HOutput, input: HfPlusNode<'a>) -> HfPlusNode<'a>
 
 
 impl<'a> HfGen<'a> for HExpr {
-    fn gen(h_node: Self) -> HFState<'a> {
+    fn gen(h_node: Self) -> HFS<'a> {
         match h_node {
             HExpr::Raw(s) => HfGen::gen(s),
             HExpr::Union(s) => HfGen::gen(s),
@@ -28,7 +28,7 @@ impl<'a> HfGen<'a> for HExpr {
 }
 
 impl<'a> HfGen<'a> for Tagged<HExprRaw, Scope> {
-    fn gen(Self(HExprRaw { input, expr, scope: in_scope }, out_scope): Self) -> HFState<'a> {
+    fn gen(Self(HExprRaw { input, expr, scope: in_scope }, out_scope): Self) -> HFS<'a> {
         Self::gen_map(
             input,
             MapFunc::newb(
@@ -43,19 +43,19 @@ impl<'a> HfGen<'a> for Tagged<HExprRaw, Scope> {
 impl<'a> HfGen<'a> for HExprUnion {
     fn gen(
         Self(box input1, box input2): Self
-    ) -> HFState<'a> {
+    ) -> HFS<'a> {
         Self::gen_union(input1, input2)
     }
 }
 
 impl<'a> HfGen<'a> for HExprShared {
-    fn gen(Self(input): Self) -> HFState<'a> {
+    fn gen(Self(input): Self) -> HFS<'a> {
         Self::gen_tee(input)
     }
 }
 
 impl<'a> HfGen<'a> for HScope {
-    fn gen(h_node: Self) -> HFState<'a> {
+    fn gen(h_node: Self) -> HFS<'a> {
         match h_node {
             HScope::Input(s) => HfGen::gen(s),
             HScope::Bind(s) => HfGen::gen(s),
@@ -65,15 +65,15 @@ impl<'a> HfGen<'a> for HScope {
 }
 
 impl<'a> HfGen<'a> for HInput {
-    fn gen(h_node: Self) -> HFState<'a> {
-        HFState::memo(|_| panic!("Did not memoize hydroflow input"), Rc::new(h_node))
+    fn gen(h_node: Self) -> HFS<'a> {
+        HFS::memo(|_| panic!("Did not memoize hydroflow input"), Rc::new(h_node))
     }
 }
 
 impl<'a> HfGen<'a> for Tagged<HBind, Scope> {
     fn gen(
         Tagged(HBind { id, box value }, scope): Self,
-    ) -> HFState<'a> {
+    ) -> HFS<'a> {
         // Todo: update this to support shadowing
         Self::gen_map(
             value,
@@ -88,7 +88,7 @@ impl<'a> HfGen<'a> for Tagged<HBind, Scope> {
 impl<'a> HfGen<'a> for HFilter {
     fn gen(
         Self { box cond, expectation }: Self,
-    ) -> HFState<'a> {
+    ) -> HFS<'a> {
         // Todo: standardize/fix idents
         Self::gen_filter_map(
             cond,
@@ -106,7 +106,7 @@ impl<'a> HfGen<'a> for HFilter {
 }
 
 impl<'a> HfGen<'a> for HReturn {
-    fn gen(Self { value }: Self) -> HFState<'a> {
+    fn gen(Self { value }: Self) -> HFS<'a> {
         Self::gen_map(
             value,
             MapFunc::new(
@@ -118,7 +118,7 @@ impl<'a> HfGen<'a> for HReturn {
 }
 
 impl<'a> HfGen<'a> for HOutput {
-    fn gen(Self { input, other }: Self) -> HFState<'a> {
+    fn gen(Self { input, other }: Self) -> HFS<'a> {
         match other {
             Some(box input2) => Self::gen_union(input, input2),
             None => HfGen::gen(input),

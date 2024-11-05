@@ -18,9 +18,9 @@ use super::{
 
 /// State monad which passes memoization structure through.
 /// Really we would want two layers of memoization monad transformers, but no HKT so this is unreasonable.
-pub type HFState<'a> = State<'a, HfMemos<'a>, Box<HfPlusNode<'a>>>;
+pub type HFS<'a> = State<'a, HfMemos<'a>, Box<HfPlusNode<'a>>>;
 
-impl<'a> HFState<'a> {
+impl<'a> HFS<'a> {
     /// Memoizes the result of appling f to t as a state monad.
     /// Returns a tee to the underlying node.
     pub fn memo<H, F>(gen: F, h_node: Rc<H>) -> Self
@@ -49,7 +49,7 @@ impl<'a> HFState<'a> {
 pub trait HfGen<'a>: HNode {
     /// Generates Hydroflow+ from h_node.
     /// State contains memoization information to avoid repeating generation of shared inputs.
-    fn gen(h_node: Self) -> HFState<'a>;
+    fn gen(h_node: Self) -> HFS<'a>;
 }
 
 // The rest of this file contains generator traits which will allow
@@ -60,7 +60,7 @@ where
     O: 'static + Pattern,
 {
     /// Generate a node which maps over h_node.
-    fn gen_map<U, I>(h_node: U, func: MapFunc<I, O>) -> HFState<'a>
+    fn gen_map<U, I>(h_node: U, func: MapFunc<I, O>) -> HFS<'a>
     where
         U: HfGen<'a> + HNode<O = I>,
         I: 'static + Pattern;
@@ -71,7 +71,7 @@ where
     O: 'static + Pattern,
     T: HfGen<'a> + HNode<O = O>,
 {
-    fn gen_map<U, I>(h_node: U, func: MapFunc<I, O>) -> HFState<'a>
+    fn gen_map<U, I>(h_node: U, func: MapFunc<I, O>) -> HFS<'a>
     where
         U: HfGen<'a> + HNode<O = I>,
         I: 'static + Pattern,
@@ -91,7 +91,7 @@ where
 {
     /// Generate a node which filter maps over h_node.
     /// The body of func should handle returning None.
-    fn gen_filter_map<U, I>(h_node: U, func: FilterMapFunc<I, O>) -> HFState<'a>
+    fn gen_filter_map<U, I>(h_node: U, func: FilterMapFunc<I, O>) -> HFS<'a>
     where
         U: HfGen<'a> + HNode<O = I>,
         I: 'a + Pattern;
@@ -102,7 +102,7 @@ where
     O: 'a + Pattern,
     T: HfGen<'a> + HNode<O = O>,
 {
-    fn gen_filter_map<U, I: Pattern>(h_node: U, func: FilterMapFunc<I, O>) -> HFState<'a>
+    fn gen_filter_map<U, I: Pattern>(h_node: U, func: FilterMapFunc<I, O>) -> HFS<'a>
     where
         U: HfGen<'a> + HNode<O = I>,
         I: 'a + Pattern,
@@ -124,7 +124,7 @@ where
     /// Does this by either
     /// 1) getting the generated node from memos,
     /// or 2) generating it and memoizing it into memos.
-    fn gen_tee<U>(h_node: Rc<U>) -> HFState<'a>
+    fn gen_tee<U>(h_node: Rc<U>) -> HFS<'a>
     where
         U: 'a + HfGen<'a> + HNode<O = O> + Eq + Hash + Clone,
         HfMemos<'a>: HfMemoize<'a, U>;
@@ -135,12 +135,12 @@ where
     O: 'a + Pattern,
     T: HfGen<'a> + HNode<O = O>,
 {
-    fn gen_tee<U>(h_node: Rc<U>) -> HFState<'a>
+    fn gen_tee<U>(h_node: Rc<U>) -> HFS<'a>
     where
         U: 'a + HfGen<'a> + HNode<O = O> + Eq + Hash + Clone,
         HfMemos<'a>: HfMemoize<'a, U>,
     {
-        HFState::memo(U::gen, h_node)
+        HFS::memo(U::gen, h_node)
     }
 }
 
@@ -149,7 +149,7 @@ where
     O: Pattern,
 {
     /// Generate a node merges two input streams.
-    fn gen_union<U1, U2, I: Pattern>(h_node1: U1, h_node2: U2) -> HFState<'a>
+    fn gen_union<U1, U2, I: Pattern>(h_node1: U1, h_node2: U2) -> HFS<'a>
     where
         U1: 'a + HfGen<'a> + HNode<O = I>,
         U2: 'a + HfGen<'a> + HNode<O = I>;
@@ -160,7 +160,7 @@ where
     O: Pattern,
     T: HfGen<'a> + HNode<O = O>,
 {
-    fn gen_union<U1, U2, I: Pattern>(h_node1: U1, h_node2: U2) -> HFState<'a>
+    fn gen_union<U1, U2, I: Pattern>(h_node1: U1, h_node2: U2) -> HFS<'a>
     where
         U1: 'a + HfGen<'a> + HNode<O = I>,
         U2: 'a + HfGen<'a> + HNode<O = I>,
