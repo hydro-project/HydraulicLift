@@ -1,0 +1,43 @@
+---
+source: src/tests.rs
+expression: visualize(hf)
+---
+node0=Placeholder;
+
+node1=node0.tee() 
+	.MAP(| (hf_in) | { (hf_in) }) 
+	.MAP(| (hf_in) | { let value = hf_in * 2 ; (value , ()) }) 
+	.MAP(| (id , ()) | { (id) }) 
+	.MAP(| (id) | { let value = id == 0 ; (value , (id)) });
+
+node2=node1.tee() 
+	.FILTER_MAP(| (cond , scope) | { if cond != false { return None } Some (scope) }) 
+	.MAP(| (id) | { let value = check_exists (id) ; (value , ()) }) 
+	.MAP(async | (future , scope) | { let value = future . await ; (value , scope) }) 
+	.POLL_FUTURES();
+
+node3=node0.tee() 
+	.MAP(| (hf_in) | { (hf_in) }) 
+	.MAP(| (hf_in) | { let value = hf_in * 2 ; (value , ()) }) 
+	.MAP(| (id , ()) | { (id) }) 
+	.MAP(| (id) | { let value = id == 0 ; (value , (id)) });
+
+UNION(
+		node2.tee() 
+			.FILTER_MAP(| (cond , scope) | { if cond != false { return None } Some (scope) }) 
+			.MAP(| () | { let value = None ; (value , ()) }) 
+			.MAP(| (value , _) | { value })
+	,
+		UNION(
+				node3.tee() 
+					.FILTER_MAP(| (cond , scope) | { if cond != true { return None } Some (scope) }) 
+					.MAP(| () | { let value = "You asked for 0?" . to_string () ; (value , ()) })
+			,
+				node2.tee() 
+					.FILTER_MAP(| (cond , scope) | { if cond != true { return None } Some (scope) }) 
+					.MAP(| () | { let value = format ! ("Found id: {hf_in}") ; (value , ()) })
+			) 
+			.MAP(| (message , ()) | { (message) }) 
+			.MAP(| (message) | { let value = Some (message) ; (value , ()) }) 
+			.MAP(| (value , _) | { value })
+	)

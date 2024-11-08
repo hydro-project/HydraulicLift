@@ -46,9 +46,9 @@ fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
             format!("node{id}.tee()")
         },
         HfPlusNode::Union(n1, n2) =>  {
-            let x1 = to_vis(n1, memo, tab+1);
-            let x2 = to_vis(n2, memo, tab+1);
-            format!("UNION(\n{tabs}{}\n{tabs},\n{tabs}{})", x1, x2)
+            let x1 = to_vis(n1, memo, tab+2);
+            let x2 = to_vis(n2, memo, tab+2);
+            format!("UNION(\n{tabs}\t{}\n{tabs},\n{tabs}\t{}\n{tabs})", x1, x2)
         },
         HfPlusNode::Map { f, input } => {
             let x = to_vis(&input, memo, tab);

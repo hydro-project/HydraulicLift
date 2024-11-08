@@ -52,7 +52,7 @@ impl From<Block> for RExpr {
 
         // Popped last statement if it is an expression, otherwise just ()
         let mut return_expr = match stmts.pop() {
-            Some(Stmt::Expr(expr, None)) => expr.into(), //ending expression
+            Some(Stmt::Expr(expr, None)) if !matches!(expr, Expr::Return(_)) => expr.into(), //ending expression (returns should not be exprs)
             Some(stmt) => {
                 // ending expression is unit if we end on a statement
                 stmts.push(stmt);

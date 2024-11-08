@@ -25,7 +25,7 @@ mod utils;
 mod tests;
 
 pub fn main() {
-    let hf = compile!(let hf_in = HfPlusNode::Placeholder => {
+    let hf = compile_dbg!(let hf_in = HfPlusNode::Placeholder => {
         // Send a message asking if hf_in*2 is a registered id
         let id = hf_in * 2;
         let message = if id == 0 {

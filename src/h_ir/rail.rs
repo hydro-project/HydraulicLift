@@ -3,6 +3,7 @@ use crate::utils::functional::Semigroup;
 use super::ir::{HOutput, HScope};
 
 /// Tracks current node alongside early returns.
+#[derive(Debug)]
 pub enum HRail<T> {
     Inner(T),
     Output(HOutput),
@@ -142,9 +143,10 @@ impl HRR<HScope> {
 
 impl<T> Semigroup for HRR<T>
 where
-    T: 'static + Semigroup,
+    T: 'static,
+    HRail<T>: Semigroup,
 {
     fn concat(self, other: Self) -> Self {
-        self.and_then(|t1| other.map(|t2| t1.concat(t2)))
+        HRR::reader(|s| self.run(s.clone()).concat(other.run(s)))
     }
 }

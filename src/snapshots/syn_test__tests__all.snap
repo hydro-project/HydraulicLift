@@ -1,0 +1,131 @@
+---
+source: src/tests.rs
+expression: hf
+---
+Union(
+    Map {
+        f: | (value , _) | { value },
+        input: Map {
+            f: | () | { let value = None ; (value , ()) },
+            input: FilterMap {
+                f: | (cond , scope) | { if cond != false { return None } Some (scope) },
+                input: Tee {
+                    inner: RefCell {
+                        value: Persist(
+                            Map {
+                                f: async | (future , scope) | { let value = future . await ; (value , scope) },
+                                input: Map {
+                                    f: | (id) | { let value = check_exists (id) ; (value , ()) },
+                                    input: FilterMap {
+                                        f: | (cond , scope) | { if cond != false { return None } Some (scope) },
+                                        input: Tee {
+                                            inner: RefCell {
+                                                value: Map {
+                                                    f: | (id) | { let value = id == 0 ; (value , (id)) },
+                                                    input: Map {
+                                                        f: | (id , ()) | { (id) },
+                                                        input: Map {
+                                                            f: | (hf_in) | { let value = hf_in * 2 ; (value , ()) },
+                                                            input: Map {
+                                                                f: | (hf_in) | { (hf_in) },
+                                                                input: Tee {
+                                                                    inner: RefCell {
+                                                                        value: Placeholder,
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        ),
+                    },
+                },
+            },
+        },
+    },
+    Map {
+        f: | (value , _) | { value },
+        input: Map {
+            f: | (message) | { let value = Some (message) ; (value , ()) },
+            input: Map {
+                f: | (message , ()) | { (message) },
+                input: Union(
+                    Map {
+                        f: | () | { let value = "You asked for 0?" . to_string () ; (value , ()) },
+                        input: FilterMap {
+                            f: | (cond , scope) | { if cond != true { return None } Some (scope) },
+                            input: Tee {
+                                inner: RefCell {
+                                    value: Map {
+                                        f: | (id) | { let value = id == 0 ; (value , (id)) },
+                                        input: Map {
+                                            f: | (id , ()) | { (id) },
+                                            input: Map {
+                                                f: | (hf_in) | { let value = hf_in * 2 ; (value , ()) },
+                                                input: Map {
+                                                    f: | (hf_in) | { (hf_in) },
+                                                    input: Tee {
+                                                        inner: RefCell {
+                                                            value: Placeholder,
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    Map {
+                        f: | () | { let value = format ! ("Found id: {hf_in}") ; (value , ()) },
+                        input: FilterMap {
+                            f: | (cond , scope) | { if cond != true { return None } Some (scope) },
+                            input: Tee {
+                                inner: RefCell {
+                                    value: Persist(
+                                        Map {
+                                            f: async | (future , scope) | { let value = future . await ; (value , scope) },
+                                            input: Map {
+                                                f: | (id) | { let value = check_exists (id) ; (value , ()) },
+                                                input: FilterMap {
+                                                    f: | (cond , scope) | { if cond != false { return None } Some (scope) },
+                                                    input: Tee {
+                                                        inner: RefCell {
+                                                            value: Map {
+                                                                f: | (id) | { let value = id == 0 ; (value , (id)) },
+                                                                input: Map {
+                                                                    f: | (id , ()) | { (id) },
+                                                                    input: Map {
+                                                                        f: | (hf_in) | { let value = hf_in * 2 ; (value , ()) },
+                                                                        input: Map {
+                                                                            f: | (hf_in) | { (hf_in) },
+                                                                            input: Tee {
+                                                                                inner: RefCell {
+                                                                                    value: Placeholder,
+                                                                                },
+                                                                            },
+                                                                        },
+                                                                    },
+                                                                },
+                                                            },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                ),
+            },
+        },
+    },
+)
