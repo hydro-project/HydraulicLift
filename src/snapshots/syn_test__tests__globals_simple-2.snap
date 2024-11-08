@@ -5,8 +5,8 @@ expression: visualize(hf)
 node0=Placeholder;
 
 node0.tee() 
-	.MAP(| _ | { () }) 
-	.MAP(| () | { let value = format ! ("hello") ; (value , ()) }) 
-	.MAP(| (x , ()) | { (x) }) 
-	.MAP(| (x) | { let value = Some (x) ; (value , ()) }) 
-	.MAP(| (value , _) | { value })
+	.map(| _ | { () }) 
+	.map(| () | { let value = format ! ("hello") ; (value , ()) }) 
+	.map(| (x , ()) | { (x) }) 
+	.map(| (x) | { let value = Some (x) ; (value , ()) }) 
+	.map(| (value , _) | { value })

@@ -46,24 +46,25 @@ fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
             format!("node{id}.tee()")
         },
         HfPlusNode::Union(n1, n2) =>  {
-            let x1 = to_vis(n1, memo, tab+2);
-            let x2 = to_vis(n2, memo, tab+2);
-            format!("UNION(\n{tabs}\t{}\n{tabs},\n{tabs}\t{}\n{tabs})", x1, x2)
+            let x1 = to_vis(n1, memo, tab);
+            let x2 = to_vis(n2, memo, tab+1);
+            format!("{x1} \n{tabs}.union(\n{tabs}\t{x2}\n{tabs})")
+            //format!("union(\n{tabs}\t{}\n{tabs},\n{tabs}\t{}\n{tabs})", x1, x2)
         },
         HfPlusNode::Map { f, input } => {
             let x = to_vis(&input, memo, tab);
             let f = f.to_token_stream();
-            format!("{} \n{tabs}.MAP({})", x, f)
+            format!("{} \n{tabs}.map({})", x, f)
         },
         HfPlusNode::FilterMap { f, input } => {
             let x = to_vis(&input, memo, tab);
             let f = f.to_token_stream();
-            format!("{} \n{tabs}.FILTER_MAP({})", x, f)
+            format!("{} \n{tabs}.filter_map({})", x, f)
         },
         HfPlusNode::Persist(input) => {
             // TODO: this is used to represent poll_futures while that is not in hf+
             let x = to_vis(&input, memo, tab);
-            format!("{} \n{tabs}.POLL_FUTURES()", x)
+            format!("{} \n{tabs}.poll_futures()", x)
         }
         _ => panic!("Visualizer doesn't support this hf+ node yet.")
     }
