@@ -2,62 +2,66 @@ use std::fmt::Debug;
 
 use syn::{Expr, Ident};
 
-use crate::utils::{debug::DebugStr, tagged::Tagged};
+use crate::utils::{debug::DebugStr, tagged::TagOut};
 
 /// R AST - Extended syn AST which directly represents the Rust code.
 /// New AST constructs are relevant for HF+ translation.
 /// TODO: lift all HF+ AST relevant objects to the top level. All syn encapsulated objects should be raw rust
 
+
+// I/O are tagged metadata corresponding to the inputs or outputs of a node.
+
 #[derive(Debug, Clone)]
-pub enum RExpr<M = ()> {
-    If(RExprIf<M>),
-    Block(RExprBlock<M>),
-    Await(RExprAwait<M>),
-    Raw(Tagged<RExprRaw<M>, M>), //TODO: expand
+pub enum RExpr<I = (), O = ()> {
+    If(RExprIf<I, O>),
+    Block(RExprBlock<I, O>),
+    Await(RExprAwait<I, O>),
+    Raw(TagOut<RExprRaw<I>, O>), //TODO: expand
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprIf<M = ()> {
-    pub cond_expr: Box<RExpr<M>>,
-    pub then_expr: Box<RExpr<M>>,
-    pub else_expr: Box<RExpr<M>>,
+pub struct RExprIf<I = (), O = ()> {
+    pub cond_expr: Box<RExpr<I, O>>,
+    pub then_expr: Box<RExpr<I, O>>,
+    pub else_expr: Box<RExpr<I, O>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprBlock<M = ()> {
-    pub stmt: RStmt<M>,
-    pub expr: Box<RExpr<M>>,
+pub struct RExprBlock<I = (), O = ()> {
+    pub stmt: RStmt<I, O>,
+    pub expr: Box<RExpr<I, O>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct RExprAwait<M = ()>(pub Box<RExpr<M>>);
+pub struct RExprAwait<I = (), O = ()>(pub Box<RExpr<I, O>>);
 
 #[derive(Debug, Clone)]
-pub struct RExprRaw<M = ()> {
+pub struct RExprRaw<I = ()> {
     pub expr: DebugStr<Expr>,
-    pub scope: M,
+    pub scope: I,
 }
 
 #[derive(Debug, Clone)]
-pub enum RStmt<M = ()> {
-    Let(Tagged<RStmtLet<M>, M>),
-    Return(RStmtReturn<M>),
+pub enum RStmt<I = (), O = ()> {
+    Let(TagOut<RStmtLet<I, O>, O>),
+    Return(RStmtReturn<I, O>),
     // TODO: add expressions here?
 }
 
 #[derive(Debug, Clone)]
-pub struct RStmtLet<M = ()> {
+pub struct RStmtLet<I = (), O = ()> {
     pub id: Ident,
-    pub value: Box<RExpr<M>>,
+    pub is_mut: bool,
+    pub value: Box<RExpr<I, O>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct RStmtReturn<M = ()> {
-    pub value: Box<RExpr<M>>,
+pub struct RStmtReturn<I = (), O = ()> {
+    pub value: Box<RExpr<I, O>>,
 }
 
-impl<M> RExprIf<M> {
-    pub fn new(cond_expr: RExpr<M>, then_expr: RExpr<M>, else_expr: RExpr<M>) -> Self {
+impl<I, O> RExprIf<I, O> {
+    pub fn new(cond_expr: RExpr<I, O>, then_expr: RExpr<I, O>, else_expr: RExpr<I, O>) -> Self {
         Self {
             cond_expr: Box::new(cond_expr),
             then_expr: Box::new(then_expr),
@@ -66,8 +70,8 @@ impl<M> RExprIf<M> {
     }
 }
 
-impl<M> RExprBlock<M> {
-    pub fn new(stmt: RStmt<M>, expr: RExpr<M>) -> Self {
+impl<I, O> RExprBlock<I, O> {
+    pub fn new(stmt: RStmt<I, O>, expr: RExpr<I, O>) -> Self {
         Self {
             stmt,
             expr: Box::new(expr),
@@ -75,14 +79,14 @@ impl<M> RExprBlock<M> {
     }
 }
 
-impl<M> RExprAwait<M> {
-    pub fn new(expr: RExpr<M>) -> Self {
+impl<I, O> RExprAwait<I, O> {
+    pub fn new(expr: RExpr<I, O>) -> Self {
         Self(Box::new(expr))
     }
 }
 
-impl<M> RExprRaw<M> {
-    pub fn new(expr: Expr, input_scope: M) -> Self {
+impl<I> RExprRaw<I> {
+    pub fn new(expr: Expr, input_scope: I) -> Self {
         Self {
             expr: expr.into(),
             scope: input_scope,
@@ -90,17 +94,18 @@ impl<M> RExprRaw<M> {
     }
 }
 
-impl<M> RStmtLet<M> {
-    pub fn new(id: Ident, value: RExpr<M>) -> Self {
+impl<I, O> RStmtLet<I, O> {
+    pub fn new(id: Ident, is_mut: bool, value: RExpr<I, O>) -> Self {
         Self {
             id,
+            is_mut,
             value: Box::new(value),
         }
     }
 }
 
-impl<M> RStmtReturn<M> {
-    pub fn new(value: RExpr<M>) -> Self {
+impl<I, O> RStmtReturn<I, O> {
+    pub fn new(value: RExpr<I, O>) -> Self {
         Self {
             value: Box::new(value),
         }

@@ -1,7 +1,7 @@
 // HNode utility for tagging h nodes with their "output types," 
 // "Output types" are patterns (a value, a scope, an expression, etc.)
 
-use crate::utils::{pattern::Pattern, tagged::Tagged};
+use crate::utils::{pattern::Pattern, tagged::TagOut};
 
 /// Specifies the pattern which can match the output of the node.
 pub trait HNode {
@@ -9,7 +9,7 @@ pub trait HNode {
 }
 
 // Tagged<T, _> just passes T's output through
-impl<T, O, M> HNode for Tagged<T, M>
+impl<T, O, M> HNode for TagOut<T, M>
 where
     O: Pattern,
     T: HNode<O = O>,

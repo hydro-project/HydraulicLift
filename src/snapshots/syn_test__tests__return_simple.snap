@@ -5,7 +5,7 @@ expression: hf
 Map {
     f: | (value , _) | { value },
     input: Map {
-        f: | (hf_in) | { let value = hf_in ; (value , ()) },
+        f: | (mut hf_in) | { let value = hf_in ; (value , ()) },
         input: Map {
             f: | (hf_in) | { (hf_in) },
             input: Tee {

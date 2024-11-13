@@ -6,7 +6,7 @@ node0=Placeholder;
 
 node0.tee() 
 	.map(| (hf_in) | { (hf_in) }) 
-	.map(| (hf_in) | { let value = hf_in + 1 ; (value , ()) }) 
+	.map(| (mut hf_in) | { let value = hf_in + 1 ; (value , ()) }) 
 	.map(| (x , ()) | { (x) }) 
 	.map(| (x) | { let value = x ; (value , ()) }) 
 	.map(| (value , _) | { value })

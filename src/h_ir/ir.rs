@@ -3,7 +3,7 @@ use std::rc::Rc;
 use syn::{Expr, Ident};
 
 use crate::{derive_hnode, utils::{
-    debug::DebugStr, functional::Semigroup, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::Tagged
+    debug::DebugStr, functional::Semigroup, pattern::{ExprPat, ScopePat}, scope::{ScopeDef, Scope}, tagged::TagOut
 }};
 
 
@@ -25,7 +25,7 @@ derive_hnode!(HReturn: Ident);
 /// :: (value, scope)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HExpr {
-    Raw(Tagged<HExprRaw, Scope>),
+    Raw(TagOut<HExprRaw, Scope>),
     Await(HExprAwait),
     // A merge point
     Union(HExprUnion),
@@ -43,7 +43,7 @@ derive_hnode!(HExprAwait: ExprPat);
 pub struct HExprRaw {
     pub expr: DebugStr<Expr>,
     pub input: HScope,
-    pub scope_def: Scope,
+    pub scope_def: ScopeDef,
 }
 derive_hnode!(HExprRaw: ExprPat);
 
@@ -58,9 +58,9 @@ derive_hnode!(HExprShared: ExprPat);
 /// :: scope
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HScope {
-    Bind(Tagged<HBind, Scope>),
+    Bind(TagOut<HBind, Scope>),
     Filter(HFilter),
-    Input(Tagged<HInput, Scope>),
+    Input(TagOut<HInput, Scope>),
 }
 derive_hnode!(HScope: ScopePat);
 
@@ -121,7 +121,7 @@ impl Semigroup for HExpr {
 }
 
 impl HExprRaw {
-    pub fn new(expr: Expr, input: HScope, scope_def: Scope) -> Self {
+    pub fn new(expr: Expr, input: HScope, scope_def: ScopeDef) -> Self {
         Self {
             expr: expr.into(),
             input,

@@ -6,7 +6,7 @@ node0=Placeholder;
 
 node1=node0.tee() 
 	.map(| (hf_in) | { (hf_in) }) 
-	.map(| (hf_in) | { let value = hf_in * 2 ; (value , ()) }) 
+	.map(| (mut hf_in) | { let value = hf_in * 2 ; (value , ()) }) 
 	.map(| (id , ()) | { (id) }) 
 	.map(| (id) | { let value = id == 0 ; (value , (id)) });
 
@@ -18,7 +18,7 @@ node2=node1.tee()
 
 node3=node0.tee() 
 	.map(| (hf_in) | { (hf_in) }) 
-	.map(| (hf_in) | { let value = hf_in * 2 ; (value , ()) }) 
+	.map(| (mut hf_in) | { let value = hf_in * 2 ; (value , ()) }) 
 	.map(| (id , ()) | { (id) }) 
 	.map(| (id) | { let value = id == 0 ; (value , (id)) });
 

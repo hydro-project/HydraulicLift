@@ -5,20 +5,21 @@ expression: hf
 Map {
     f: | (value , _) | { value },
     input: Map {
-        f: | (y) | { let value = y ; (value , ()) },
+        f: | (mut x) | { let value = x ; (value , ()) },
         input: Map {
-            f: | (y , ()) | { (y) },
-            input: Persist(
-                Map {
-                    f: async | (future , scope) | { let value = future . await ; (value , scope) },
+            f: | (_ , (x)) | { (x) },
+            input: Map {
+                f: | (mut x) | { let value = x . push (5) ; (value , (x)) },
+                input: Map {
+                    f: | (_ , (x)) | { (x) },
                     input: Map {
-                        f: | (x) | { let value = x ; (value , ()) },
+                        f: | (mut x) | { let value = x . push (4) ; (value , (x)) },
                         input: Map {
                             f: | (x , ()) | { (x) },
                             input: Map {
-                                f: | (mut hf_in) | { let value = async { hf_in } ; (value , ()) },
+                                f: | () | { let value = vec ! [1 , 2 , 3] ; (value , ()) },
                                 input: Map {
-                                    f: | (hf_in) | { (hf_in) },
+                                    f: | _ | { () },
                                     input: Tee {
                                         inner: RefCell {
                                             value: Placeholder,
@@ -29,7 +30,7 @@ Map {
                         },
                     },
                 },
-            ),
+            },
         },
     },
 }

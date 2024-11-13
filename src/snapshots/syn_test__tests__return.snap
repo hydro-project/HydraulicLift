@@ -9,7 +9,7 @@ Map {
         input: Map {
             f: | (x , ()) | { (x) },
             input: Map {
-                f: | (hf_in) | { let value = hf_in + 1 ; (value , ()) },
+                f: | (mut hf_in) | { let value = hf_in + 1 ; (value , ()) },
                 input: Map {
                     f: | (hf_in) | { (hf_in) },
                     input: Tee {

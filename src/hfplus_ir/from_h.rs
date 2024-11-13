@@ -6,7 +6,7 @@ use quote::quote;
 use crate::{
     h_ir::ir::*,
     utils::{
-        idents::ident, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::Tagged
+        idents::ident, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::TagOut
     },
 };
 
@@ -34,7 +34,7 @@ impl<'a> HfGen<'a> for HExpr {
     }
 }
 
-impl<'a> HfGen<'a> for Tagged<HExprRaw, Scope> {
+impl<'a> HfGen<'a> for TagOut<HExprRaw, Scope> {
     fn gen(
         Self(
             HExprRaw {
@@ -49,7 +49,7 @@ impl<'a> HfGen<'a> for Tagged<HExprRaw, Scope> {
         Self::gen_map(
             input,
             MapFunc::newb(
-                ScopePat::Destructured(in_scope),
+                ScopePat::DestructuredDef(in_scope),
                 ExprPat::Destructured(val_id.clone(), ScopePat::Destructured(out_scope)),
                 quote! { let #val_id = #expr; },
             ),
@@ -97,8 +97,8 @@ impl<'a> HfGen<'a> for HScope {
     }
 }
 
-impl<'a> HfGen<'a> for Tagged<HInput, Scope> {
-    fn gen(Tagged(h_node, outs): Self) -> HFS<'a> {
+impl<'a> HfGen<'a> for TagOut<HInput, Scope> {
+    fn gen(TagOut(h_node, outs): Self) -> HFS<'a> {
         // Check if input is used or discarded
         let ins = if outs.is_empty() {
             ScopePat::Ident(ident("_"))
@@ -118,8 +118,8 @@ impl<'a> HfGen<'a> for HInput {
     }
 }
 
-impl<'a> HfGen<'a> for Tagged<HBind, Scope> {
-    fn gen(Tagged(HBind { id, box value }, scope): Self) -> HFS<'a> {
+impl<'a> HfGen<'a> for TagOut<HBind, Scope> {
+    fn gen(TagOut(HBind { id, box value }, scope): Self) -> HFS<'a> {
         // Todo: update this to support shadowing
         Self::gen_map(
             value,

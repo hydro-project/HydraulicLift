@@ -83,3 +83,13 @@ fn test_all() {
         Some(message)
     });
 }
+
+#[test]
+fn test_mut_simple() {
+    test_compile!(let hf_in = HfPlusNode::Placeholder => {
+        let mut x = vec![1, 2, 3];
+        x.push(4);
+        x.push(5);
+        x
+    });
+}

@@ -25,7 +25,7 @@ Union(
                                                     input: Map {
                                                         f: | (id , ()) | { (id) },
                                                         input: Map {
-                                                            f: | (hf_in) | { let value = hf_in * 2 ; (value , ()) },
+                                                            f: | (mut hf_in) | { let value = hf_in * 2 ; (value , ()) },
                                                             input: Map {
                                                                 f: | (hf_in) | { (hf_in) },
                                                                 input: Tee {
@@ -66,7 +66,7 @@ Union(
                                         input: Map {
                                             f: | (id , ()) | { (id) },
                                             input: Map {
-                                                f: | (hf_in) | { let value = hf_in * 2 ; (value , ()) },
+                                                f: | (mut hf_in) | { let value = hf_in * 2 ; (value , ()) },
                                                 input: Map {
                                                     f: | (hf_in) | { (hf_in) },
                                                     input: Tee {
@@ -102,7 +102,7 @@ Union(
                                                                 input: Map {
                                                                     f: | (id , ()) | { (id) },
                                                                     input: Map {
-                                                                        f: | (hf_in) | { let value = hf_in * 2 ; (value , ()) },
+                                                                        f: | (mut hf_in) | { let value = hf_in * 2 ; (value , ()) },
                                                                         input: Map {
                                                                             f: | (hf_in) | { (hf_in) },
                                                                             input: Tee {

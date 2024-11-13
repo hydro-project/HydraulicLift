@@ -78,14 +78,14 @@ impl From<Stmt> for RStmt {
     fn from(stmt: Stmt) -> Self {
         match stmt {
             Stmt::Local(Local {
-                pat: Pat::Ident(PatIdent { ident, .. }),
+                pat: Pat::Ident(PatIdent { ident, mutability, .. }),
                 init: Some(LocalInit { box expr, .. }),
                 ..
-            }) => Self::Let(RStmtLet::new(ident, expr.into()).into()),
+            }) => Self::Let(RStmtLet::new(ident, mutability.is_some(), expr.into()).into()),
             Stmt::Expr(Expr::Return(ExprReturn { expr, .. }), _) => Self::Return(RStmtReturn::new(
                 expr.map(|box e| e).unwrap_or(syn_unit()).into(),
             )),
-            Stmt::Expr(expr, _) => Self::Let(RStmtLet::new(ident("_"), expr.into()).into()), // expr; -> let _ = expr;
+            Stmt::Expr(expr, _) => Self::Let(RStmtLet::new(ident("_"), false, expr.into()).into()), // expr; -> let _ = expr;
             _ => panic!(
                 "Unable to parse {:?}. This is probably not supported by Rust to Hydro yet.",
                 stmt

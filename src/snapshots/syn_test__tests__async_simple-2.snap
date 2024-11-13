@@ -6,7 +6,7 @@ node0=Placeholder;
 
 node0.tee() 
 	.map(| (hf_in) | { (hf_in) }) 
-	.map(| (hf_in) | { let value = async { hf_in } ; (value , ()) }) 
+	.map(| (mut hf_in) | { let value = async { hf_in } ; (value , ()) }) 
 	.map(| (x , ()) | { (x) }) 
 	.map(| (x) | { let value = x ; (value , ()) }) 
 	.map(async | (future , scope) | { let value = future . await ; (value , scope) }) 

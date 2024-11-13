@@ -1,0 +1,16 @@
+---
+source: src/tests.rs
+expression: visualize(hf)
+---
+node0=Placeholder;
+
+node0.tee() 
+	.map(| _ | { () }) 
+	.map(| () | { let value = vec ! [1 , 2 , 3] ; (value , ()) }) 
+	.map(| (x , ()) | { (x) }) 
+	.map(| (mut x) | { let value = x . push (4) ; (value , (x)) }) 
+	.map(| (_ , (x)) | { (x) }) 
+	.map(| (mut x) | { let value = x . push (5) ; (value , (x)) }) 
+	.map(| (_ , (x)) | { (x) }) 
+	.map(| (mut x) | { let value = x ; (value , ()) }) 
+	.map(| (value , _) | { value })

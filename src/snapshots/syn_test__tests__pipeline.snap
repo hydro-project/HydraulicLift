@@ -17,11 +17,11 @@ Map {
                         input: Map {
                             f: | (y , (x)) | { (x , y) },
                             input: Map {
-                                f: | (hf_in , x) | { let value = hf_in + 2 ; (value , (x)) },
+                                f: | (mut hf_in , x) | { let value = hf_in + 2 ; (value , (x)) },
                                 input: Map {
                                     f: | (x , (hf_in)) | { (hf_in , x) },
                                     input: Map {
-                                        f: | (hf_in) | { let value = 1 ; (value , (hf_in)) },
+                                        f: | (mut hf_in) | { let value = 1 ; (value , (hf_in)) },
                                         input: Map {
                                             f: | (hf_in) | { (hf_in) },
                                             input: Tee {

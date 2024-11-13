@@ -6,9 +6,9 @@ node0=Placeholder;
 
 node0.tee() 
 	.map(| (hf_in) | { (hf_in) }) 
-	.map(| (hf_in) | { let value = 1 ; (value , (hf_in)) }) 
+	.map(| (mut hf_in) | { let value = 1 ; (value , (hf_in)) }) 
 	.map(| (x , (hf_in)) | { (hf_in , x) }) 
-	.map(| (hf_in , x) | { let value = hf_in + 2 ; (value , (x)) }) 
+	.map(| (mut hf_in , x) | { let value = hf_in + 2 ; (value , (x)) }) 
 	.map(| (y , (x)) | { (x , y) }) 
 	.map(| (x , y) | { let value = x + y + 3 ; (value , ()) }) 
 	.map(| (z , ()) | { (z) }) 
