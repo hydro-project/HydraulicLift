@@ -45,6 +45,7 @@ pub struct RExprRaw<I = ()> {
 pub enum RStmt<I = (), O = ()> {
     Let(TagOut<RStmtLet<I, O>, O>),
     Return(RStmtReturn<I, O>),
+    While(RStmtWhile<I, O>)
     // TODO: add expressions here?
 }
 
@@ -58,6 +59,12 @@ pub struct RStmtLet<I = (), O = ()> {
 #[derive(Debug, Clone)]
 pub struct RStmtReturn<I = (), O = ()> {
     pub value: Box<RExpr<I, O>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RStmtWhile<I = (), O = ()> {
+    pub cond: Box<RExpr<I, O>>,
+    pub body: Box<RExpr<I, O>>,
 }
 
 impl<I, O> RExprIf<I, O> {
@@ -111,3 +118,13 @@ impl<I, O> RStmtReturn<I, O> {
         }
     }
 }
+
+impl<I, O> RStmtWhile<I, O> {
+    pub fn new(cond: RExpr<I, O>, body: RExpr<I, O>) -> Self {
+        Self {
+            cond: Box::new(cond),
+            body: Box::new(body),
+        }
+    }
+}
+

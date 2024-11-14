@@ -93,3 +93,16 @@ fn test_mut_simple() {
         x
     });
 }
+
+#[test]
+fn test_while_simple() {
+    test_compile!(let hf_in = HfPlusNode::Placeholder => {
+        let mut x = 3;
+
+        while x > 0 {
+            x = x + 1;
+        }
+
+        x = 10;
+    });
+}

@@ -1,16 +1,20 @@
 use std::collections::HashMap;
 
-use hydroflow_plus::ir::HfPlusNode;
-use quote::ToTokens;
+use hydroflow_plus::ir::{HfPlusLeaf, HfPlusNode};
+use quote::{quote, ToTokens};
 
 
 // maybe rename to decompile
-pub fn visualize(node: HfPlusNode) -> String {
+pub fn visualize((leaves, node): (Vec<HfPlusLeaf>, HfPlusNode)) -> String {
     let mut memo = NodeMapping { ids: HashMap::new(), defs: Vec::new(), i: 0 };
+    let leaves_out:Vec<_> = leaves.iter().map(|leaf| to_vis_leaf(leaf, &mut memo)).collect();
     let out = to_vis(&node, &mut memo, 1);
     let mut out_str = String::new();
     for (i, def) in memo.defs.iter().enumerate() {
         out_str.push_str(&format!("\n\nnode{}={};", i, def));
+    }
+    for leaf_out in leaves_out {
+        out_str.push_str(&format!("\n\n{leaf_out};"));
     }
     out_str.push_str(&format!("\n\n{}", out));
     out_str
@@ -32,6 +36,16 @@ impl NodeMapping {
     }
 }
 
+fn to_vis_leaf(node: &HfPlusLeaf, memo: &mut NodeMapping) -> String {
+    match node {
+        HfPlusLeaf::CycleSink { ident, input, .. } => {
+            let x = to_vis(&input, memo, 1);
+            format!("{} \n\t.cycle_sink(\"{}\")", x, ident.to_token_stream())
+        },
+        _ => panic!("Visualizer doesn't support this hf+ leaf node yet.")
+    }
+}
+
 fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
     let tabs = "\t".repeat(tab);
     match node {
@@ -49,7 +63,6 @@ fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
             let x1 = to_vis(n1, memo, tab);
             let x2 = to_vis(n2, memo, tab+1);
             format!("{x1} \n{tabs}.union(\n{tabs}\t{x2}\n{tabs})")
-            //format!("union(\n{tabs}\t{}\n{tabs},\n{tabs}\t{}\n{tabs})", x1, x2)
         },
         HfPlusNode::Map { f, input } => {
             let x = to_vis(&input, memo, tab);
@@ -65,6 +78,9 @@ fn to_vis(node: &HfPlusNode, memo: &mut NodeMapping, tab: usize) -> String {
             // TODO: this is used to represent poll_futures while that is not in hf+
             let x = to_vis(&input, memo, tab);
             format!("{} \n{tabs}.poll_futures()", x)
+        },
+        HfPlusNode::CycleSource { ident, .. } => {
+            format!("cycle_source(\"{}\")", ident.to_token_stream())
         }
         _ => panic!("Visualizer doesn't support this hf+ node yet.")
     }

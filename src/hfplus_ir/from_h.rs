@@ -1,12 +1,19 @@
 use std::{cell::RefCell, rc::Rc};
 
-use hydroflow_plus::ir::HfPlusNode;
+use hydroflow_plus::{
+    ir::{HfPlusLeaf, HfPlusNode},
+    location::LocationId,
+};
 use quote::quote;
 
 use crate::{
-    h_ir::ir::*,
+    h_ir::{ir::*, node::HNode},
     utils::{
-        idents::ident, pattern::{ExprPat, ScopePat}, scope::Scope, tagged::TagOut
+        functional::{SequenceState, State},
+        idents::ident,
+        pattern::{ExprPat, ScopePat},
+        scope::Scope,
+        tagged::TagOut,
     },
 };
 
@@ -17,10 +24,33 @@ use super::{
 };
 
 /// Generates hydroflow+ node from hnode, which consumes the specified input.
-pub fn generate_hf<'a>(h_node: HOutput, input: HfPlusNode<'a>) -> HfPlusNode<'a> {
+pub fn generate_hf<'a>(
+    (h_sinks, h_node): (Vec<HCycleSink>, HOutput),
+    input: HfPlusNode<'a>,
+) -> (Vec<HfPlusLeaf<'a>>, HfPlusNode<'a>) {
     let memos = HfMemos::new().with(Rc::new(HInput), Rc::new(RefCell::new(input)));
 
-    *HOutput::gen(h_node).run(memos).1
+    // let hf_node = *HOutput::gen(h_node).run(memos).1;
+    // let hf_leaves = h_sinks.into_iter().scan(initial_state, f);
+
+    HOutput::gen(h_node)
+        .and_then(|box hf_node| {
+            h_sinks
+                .into_iter()
+                .map(gen_leaf)
+                .sequence()
+                .map(|hf_sinks| (hf_sinks, hf_node))
+        })
+        .run(memos)
+        .1
+}
+
+fn gen_leaf<'a>(HCycleSink { scope, ident }: HCycleSink) -> State<'a, HfMemos<'a>, HfPlusLeaf<'a>> {
+    HfGen::gen(scope).map(|hf_scope| HfPlusLeaf::CycleSink {
+        input: hf_scope,
+        ident,
+        location_kind: LocationId::Process(0),
+    })
 }
 
 impl<'a> HfGen<'a> for HExpr {
@@ -75,7 +105,8 @@ impl<'a> HfGen<'a> for HExprAwait {
     }
 }
 
-impl<'a> HfGen<'a> for HExprUnion {
+impl<'a, T> HfGen<'a> for HUnion<T> 
+    where T: 'a + HNode + HfGen<'a>{
     fn gen(Self(box h_in1, box h_in2): Self) -> HFS<'a> {
         Self::gen_union(h_in1, h_in2)
     }
@@ -90,10 +121,26 @@ impl<'a> HfGen<'a> for HExprShared {
 impl<'a> HfGen<'a> for HScope {
     fn gen(h_node: Self) -> HFS<'a> {
         match h_node {
-            HScope::Input(s) => HfGen::gen(s),
-            HScope::Bind(s) => HfGen::gen(s),
-            HScope::Filter(s) => HfGen::gen(s),
+            Self::Expr(s) => HfGen::gen(s),
+            Self::Input(s) => HfGen::gen(s),
+            Self::Bind(s) => HfGen::gen(s),
+            Self::Filter(s) => HfGen::gen(s),
+            Self::Union(s) => HfGen::gen(s),
+            Self::CycleSource(s) => HfGen::gen(s),
         }
+    }
+}
+
+impl<'a> HfGen<'a> for HDropExpr {
+    fn gen(Self { box expr }: Self) -> HFS<'a> {
+        let scope_id = ident("scope");
+        Self::gen_map(
+            expr,
+            MapFunc::new(
+                ExprPat::Destructured(ident("_"), ScopePat::Ident(scope_id.clone())),
+                ScopePat::Ident(scope_id),
+            ),
+        )
     }
 }
 
@@ -106,6 +153,12 @@ impl<'a> HfGen<'a> for TagOut<HInput, Scope> {
             ScopePat::Destructured(outs.clone())
         };
         Self::gen_map(h_node, MapFunc::new(ins, ScopePat::Destructured(outs)))
+    }
+}
+
+impl<'a> HfGen<'a> for HCycleSource {
+    fn gen(Self(ident): Self) -> HFS<'a> {
+        HFS::pure(Box::new(HfPlusNode::CycleSource { ident, location_kind: LocationId::Process(0)}))
     }
 }
 
@@ -172,10 +225,10 @@ impl<'a> HfGen<'a> for HReturn {
 }
 
 impl<'a> HfGen<'a> for HOutput {
-    fn gen(Self { input, other }: Self) -> HFS<'a> {
-        match other {
-            Some(box input2) => Self::gen_union(input, input2),
-            None => HfGen::gen(input),
+    fn gen(value: Self) -> HFS<'a> {
+        match value {
+            HOutput::Return(s) => HfGen::gen(s),
+            HOutput::Union(s) => HfGen::gen(s),
         }
     }
 }

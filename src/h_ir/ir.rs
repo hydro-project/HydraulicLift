@@ -6,29 +6,38 @@ use crate::{derive_hnode, utils::{
     debug::DebugStr, functional::Semigroup, pattern::{ExprPat, ScopePat}, scope::{ScopeDef, Scope}, tagged::TagOut
 }};
 
+use super::node::HNode;
+
 
 // :: value
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct HOutput {
-    pub input: HReturn,
-    pub other: Option<Box<HOutput>>,
+pub enum HOutput {
+    Return(HReturn),
+    Union(HUnion<HOutput>)
 }
 derive_hnode!(HOutput: Ident);
 
-/// :: value
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HReturn {
     pub value: HExpr,
 }
 derive_hnode!(HReturn: Ident);
 
+/// No outputs! This is a sink node which consumes a scope.
+/// ident identifies this sink with a HCycleSource.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HCycleSink {
+    pub scope: HScope,
+    pub ident: Ident
+}
+
 /// :: (value, scope)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HExpr {
     Raw(TagOut<HExprRaw, Scope>),
     Await(HExprAwait),
-    // A merge point
-    Union(HExprUnion),
+    /// A merge point
+    Union(HUnion<HExpr>),
     /// A branch point
     Shared(HExprShared),
 }
@@ -48,21 +57,27 @@ pub struct HExprRaw {
 derive_hnode!(HExprRaw: ExprPat);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct HExprUnion(pub Box<HExpr>, pub Box<HExpr>);
-derive_hnode!(HExprUnion: ExprPat);
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HExprShared(pub Rc<HExpr>);
 derive_hnode!(HExprShared: ExprPat);
 
 /// :: scope
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum HScope {
+    Expr(HDropExpr),
     Bind(TagOut<HBind, Scope>),
     Filter(HFilter),
+    CycleSource(HCycleSource),
+    Union(HUnion<HScope>),
     Input(TagOut<HInput, Scope>),
 }
 derive_hnode!(HScope: ScopePat);
+
+/// drops an expression value
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HDropExpr {
+    pub expr: Box<HExpr>
+}
+derive_hnode!(HDropExpr: ScopePat);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HBind {
@@ -79,34 +94,31 @@ pub struct HFilter {
 }
 derive_hnode!(HFilter: ScopePat);
 
+/// ident identifies this source with a HCycleSink.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HCycleSource(pub Ident);
+derive_hnode!(HCycleSource: ScopePat);
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HInput;
 derive_hnode!(HInput: ScopePat);
 
-impl HOutput {
-    /// Creates a new output from the return value
-    pub fn new(input: HReturn) -> Self {
-        Self { input, other: None }
-    }
+/// Represents a merge point on the dataflow graph.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HUnion<T>(pub Box<T>, pub Box<T>);
+impl<T> HNode for HUnion<T> 
+    where T: HNode
+{
+    type O = T::O;
+}
 
+impl HOutput {
     /// Creates a new output returning value
     pub fn ret(value: HExpr) -> Self {
-        Self::new(HReturn::new(value))
+        Self::Return(HReturn::new(value))
     }
 }
 
-impl Semigroup for HOutput {
-    fn concat(self, Self { input, other }: Self) -> Self {
-        let move_one = Self {
-            input,
-            other: Some(Box::new(self)),
-        };
-        match other {
-            Some(box rest) => move_one.concat(rest),
-            None => move_one,
-        }
-    }
-}
 
 impl HReturn {
     pub fn new(value: HExpr) -> Self {
@@ -114,11 +126,6 @@ impl HReturn {
     }
 }
 
-impl Semigroup for HExpr {
-    fn concat(self, other: Self) -> Self {
-        Self::Union(HExprUnion::new(self, other))
-    }
-}
 
 impl HExprRaw {
     pub fn new(expr: Expr, input: HScope, scope_def: ScopeDef) -> Self {
@@ -136,15 +143,17 @@ impl HExprAwait {
     }
 }
 
-impl HExprUnion {
-    pub fn new(e1: HExpr, e2: HExpr) -> Self {
-        Self(Box::new(e1), Box::new(e2))
-    }
-}
-
 impl HExprShared {
     pub fn new(inner: Rc<HExpr>) -> Self {
         Self(inner)
+    }
+}
+
+impl HDropExpr {
+    pub fn new(expr: HExpr) -> Self {
+        Self {
+            expr: Box::new(expr)
+        }
     }
 }
 
@@ -163,5 +172,41 @@ impl HFilter {
             expectation,
             cond: Box::new(cond),
         }
+    }
+}
+
+impl HCycleSink {
+    pub fn new(scope: HScope, ident: Ident) -> Self {
+        Self { scope, ident }
+    }
+}
+
+impl HCycleSource {
+    pub fn new(ident: Ident) -> Self {
+        Self(ident)
+    }
+}
+
+impl<T> HUnion<T> {
+    pub fn new(t1: T, t2: T) -> Self {
+        Self(Box::new(t1), Box::new(t2))
+    }
+}
+
+impl Semigroup for HOutput {
+    fn concat(self, other: Self) -> Self {
+        Self::Union(HUnion::new(self, other))
+    }
+}
+
+impl Semigroup for HExpr {
+    fn concat(self, other: Self) -> Self {
+        Self::Union(HUnion::new(self, other))
+    }
+}
+
+impl Semigroup for HScope {
+    fn concat(self, other: Self) -> Self {
+        Self::Union(HUnion::new(self, other))
     }
 }

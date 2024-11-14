@@ -1,4 +1,3 @@
-
 pub trait Semigroup {
     fn concat(self, other: Self) -> Self;
 }
@@ -114,5 +113,28 @@ where
             let (s2, t2) = other.run(s);
             (s1.concat(s2), (t1, t2))
         }))
+    }
+}
+
+// [m a] -> m [a]
+pub trait SequenceState<'a, S, T>: IntoIterator<Item = State<'a, S, T>> {
+    fn sequence(self) -> State<'a, S, Vec<T>>;
+}
+
+impl<'a, U, S, T> SequenceState<'a, S, T> for U
+where
+    U: IntoIterator<Item = State<'a, S, T>>,
+    S: 'a,
+    T: 'a,
+{
+    fn sequence(self) -> State<'a, S, Vec<T>> {
+        self.into_iter().fold(State::pure(Vec::new()), |acc, x| {
+            acc.and_then(|mut v| {
+                x.map(|x| {
+                    v.push(x);
+                    v
+                })
+            })
+        })
     }
 }

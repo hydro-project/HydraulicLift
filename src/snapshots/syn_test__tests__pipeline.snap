@@ -2,31 +2,34 @@
 source: src/tests.rs
 expression: hf
 ---
-Map {
-    f: | (value , _) | { value },
-    input: Map {
-        f: | (o) | { let value = o + 5 ; (value , ()) },
+(
+    [],
+    Map {
+        f: | (value , _) | { value },
         input: Map {
-            f: | (o , ()) | { (o) },
+            f: | (o) | { let value = o + 5 ; (value , ()) },
             input: Map {
-                f: | (z) | { let value = z + 4 ; (value , ()) },
+                f: | (o , ()) | { (o) },
                 input: Map {
-                    f: | (z , ()) | { (z) },
+                    f: | (z) | { let value = z + 4 ; (value , ()) },
                     input: Map {
-                        f: | (x , y) | { let value = x + y + 3 ; (value , ()) },
+                        f: | (z , ()) | { (z) },
                         input: Map {
-                            f: | (y , (x)) | { (x , y) },
+                            f: | (x , y) | { let value = x + y + 3 ; (value , ()) },
                             input: Map {
-                                f: | (mut hf_in , x) | { let value = hf_in + 2 ; (value , (x)) },
+                                f: | (y , (x)) | { (x , y) },
                                 input: Map {
-                                    f: | (x , (hf_in)) | { (hf_in , x) },
+                                    f: | (mut hf_in , x) | { let value = hf_in + 2 ; (value , (x)) },
                                     input: Map {
-                                        f: | (mut hf_in) | { let value = 1 ; (value , (hf_in)) },
+                                        f: | (x , (hf_in)) | { (hf_in , x) },
                                         input: Map {
-                                            f: | (hf_in) | { (hf_in) },
-                                            input: Tee {
-                                                inner: RefCell {
-                                                    value: Placeholder,
+                                            f: | (mut hf_in) | { let value = 1 ; (value , (hf_in)) },
+                                            input: Map {
+                                                f: | (hf_in) | { (hf_in) },
+                                                input: Tee {
+                                                    inner: RefCell {
+                                                        value: Placeholder,
+                                                    },
                                                 },
                                             },
                                         },
@@ -39,4 +42,4 @@ Map {
             },
         },
     },
-}
+)

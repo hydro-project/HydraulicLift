@@ -68,6 +68,7 @@ impl From<RStmt> for TS<RStmt<ScopeDef>> {
         match value {
             RStmt::Let(s) => TS::from(s).map(RStmt::Let),
             RStmt::Return(s) => TS::from(s).map(RStmt::Return),
+            RStmt::While(s) => TS::from(s).map(RStmt::While),
         }
     }
 }
@@ -91,6 +92,12 @@ impl From<RStmtLet> for TS<RStmtLet<ScopeDef>> {
 impl From<RStmtReturn> for TS<RStmtReturn<ScopeDef>> {
     fn from(RStmtReturn { box value }: RStmtReturn) -> Self {
         TS::from(value).map(|value| RStmtReturn::new(value))
+    }
+}
+
+impl From<RStmtWhile> for TS<RStmtWhile<ScopeDef>> {
+    fn from(RStmtWhile { box cond, box body }: RStmtWhile) -> Self {
+        TS::from(cond).and_then(|cond| TS::from(body).map(|body| RStmtWhile::new(cond, body)))
     }
 }
 

@@ -2,23 +2,26 @@
 source: src/tests.rs
 expression: hf
 ---
-Map {
-    f: | (value , _) | { value },
-    input: Map {
-        f: | (x) | { let value = Some (x) ; (value , ()) },
+(
+    [],
+    Map {
+        f: | (value , _) | { value },
         input: Map {
-            f: | (x , ()) | { (x) },
+            f: | (x) | { let value = Some (x) ; (value , ()) },
             input: Map {
-                f: | () | { let value = format ! ("hello") ; (value , ()) },
+                f: | (x , ()) | { (x) },
                 input: Map {
-                    f: | _ | { () },
-                    input: Tee {
-                        inner: RefCell {
-                            value: Placeholder,
+                    f: | () | { let value = format ! ("hello") ; (value , ()) },
+                    input: Map {
+                        f: | _ | { () },
+                        input: Tee {
+                            inner: RefCell {
+                                value: Placeholder,
+                            },
                         },
                     },
                 },
             },
         },
     },
-}
+)

@@ -2,22 +2,25 @@
 source: src/tests.rs
 expression: hf
 ---
-Map {
-    f: | (value , _) | { value },
-    input: Union(
-        Map {
-            f: | () | { let value = 3 ; (value , ()) },
-            input: FilterMap {
-                f: | (cond , scope) | { if cond != true { return None } Some (scope) },
-                input: Tee {
-                    inner: RefCell {
-                        value: Map {
-                            f: | () | { let value = 1 == 2 ; (value , ()) },
-                            input: Map {
-                                f: | _ | { () },
-                                input: Tee {
-                                    inner: RefCell {
-                                        value: Placeholder,
+(
+    [],
+    Map {
+        f: | (value , _) | { value },
+        input: Union(
+            Map {
+                f: | () | { let value = 3 ; (value , ()) },
+                input: FilterMap {
+                    f: | (cond , scope) | { if cond != true { return None } Some (scope) },
+                    input: Tee {
+                        inner: RefCell {
+                            value: Map {
+                                f: | () | { let value = 1 == 2 ; (value , ()) },
+                                input: Map {
+                                    f: | _ | { () },
+                                    input: Tee {
+                                        inner: RefCell {
+                                            value: Placeholder,
+                                        },
                                     },
                                 },
                             },
@@ -25,20 +28,20 @@ Map {
                     },
                 },
             },
-        },
-        Map {
-            f: | () | { let value = 4 ; (value , ()) },
-            input: FilterMap {
-                f: | (cond , scope) | { if cond != false { return None } Some (scope) },
-                input: Tee {
-                    inner: RefCell {
-                        value: Map {
-                            f: | () | { let value = 1 == 2 ; (value , ()) },
-                            input: Map {
-                                f: | _ | { () },
-                                input: Tee {
-                                    inner: RefCell {
-                                        value: Placeholder,
+            Map {
+                f: | () | { let value = 4 ; (value , ()) },
+                input: FilterMap {
+                    f: | (cond , scope) | { if cond != false { return None } Some (scope) },
+                    input: Tee {
+                        inner: RefCell {
+                            value: Map {
+                                f: | () | { let value = 1 == 2 ; (value , ()) },
+                                input: Map {
+                                    f: | _ | { () },
+                                    input: Tee {
+                                        inner: RefCell {
+                                            value: Placeholder,
+                                        },
                                     },
                                 },
                             },
@@ -46,6 +49,6 @@ Map {
                     },
                 },
             },
-        },
-    ),
-}
+        ),
+    },
+)

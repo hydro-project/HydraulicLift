@@ -1,10 +1,10 @@
-use hydroflow_plus::ir::HfPlusNode;
+use hydroflow_plus::ir::{HfPlusLeaf, HfPlusNode};
 use syn::{Expr, Ident};
 
-use crate::{h_ir::ir::HOutput, hfplus_ir::from_h::generate_hf, r_ir::{ir::RExpr, scope_analysis::tag::tag}};
+use crate::{h_ir::from_r::generate_h, hfplus_ir::from_h::generate_hf, r_ir::{ir::RExpr, scope_analysis::tag::tag}};
 
 
-pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> HfPlusNode {
+pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> (Vec<HfPlusLeaf>, HfPlusNode) {
     if debug {
         println!("fn expr(){{{:?}}}", expr);
     }
@@ -16,7 +16,7 @@ pub fn compile(input: Ident, hf_input: HfPlusNode, expr: Expr, debug: bool) -> H
     if debug {
         println!("fn r_expr_tagged(){{{:?}}}", r_expr_tagged);
     }
-    let h_expr = HOutput::from(r_expr_tagged);
+    let h_expr = generate_h(r_expr_tagged);
     if debug {
         println!("fn h_expr(){{{:?}}}", h_expr);
     }

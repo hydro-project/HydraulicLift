@@ -1,0 +1,29 @@
+---
+source: src/tests.rs
+expression: visualize(hf)
+---
+node0=Placeholder;
+
+node1=node0.tee() 
+	.map(| _ | { () }) 
+	.map(| () | { let value = 3 ; (value , ()) }) 
+	.map(| (x , ()) | { (x) }) 
+	.union(
+		cycle_source("__HYDRAULIC_LIFT__0")
+	) 
+	.map(| (mut x) | { let value = x > 0 ; (value , (x)) });
+
+node1.tee() 
+	.filter_map(| (cond , scope) | { if cond != true { return None } Some (scope) }) 
+	.map(| (mut x) | { let value = x = x + 1 ; (value , (x)) }) 
+	.map(| (_ , (x)) | { (x) }) 
+	.map(| (mut x) | { let value = () ; (value , (x)) }) 
+	.map(| (_ , scope) | { scope }) 
+	.cycle_sink("__HYDRAULIC_LIFT__0");
+
+node1.tee() 
+	.filter_map(| (cond , scope) | { if cond != false { return None } Some (scope) }) 
+	.map(| (mut x) | { let value = x = 10 ; (value , ()) }) 
+	.map(| (_ , ()) | { () }) 
+	.map(| () | { let value = () ; (value , ()) }) 
+	.map(| (value , _) | { value })
